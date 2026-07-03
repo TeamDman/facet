@@ -6620,6 +6620,7 @@ dependencies = [
  "rediff",
  "regex",
  "regex-automata",
+ "smallvec 1.15.2",
  "snark-dsl",
  "snark-scanner-host",
  "weavy",

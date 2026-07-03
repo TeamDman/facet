@@ -10,6 +10,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     error::Error,
     fmt,
+    sync::Arc,
 };
 
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
         StaticPrecedenceValue, SymbolRef, ValidatedGrammar, VisibleNodeKind,
     },
 };
+use smallvec::SmallVec;
 
 macro_rules! id_type {
     ($name:ident, $doc:literal) => {
@@ -4817,18 +4819,47 @@ impl ParserInputEdit {
 /// Lossless-enough parse tree projection for CST/AST consumers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedCstNode {
-    kind: String,
+    kind: Arc<str>,
     symbol: Option<ParserSymbol>,
-    field: Option<String>,
+    field: Option<Arc<str>>,
     node: Option<TreeNodeId>,
     bytes: ByteRange,
     points: PointRange,
     named: bool,
     visible: bool,
     extra: bool,
-    text: Option<String>,
+    text: Option<ResolvedCstText>,
     children: Vec<Self>,
 }
+
+#[derive(Clone)]
+struct ResolvedCstText {
+    source: Arc<str>,
+    bytes: ByteRange,
+}
+
+impl ResolvedCstText {
+    fn as_str(&self) -> Option<&str> {
+        source_slice(&self.source, self.bytes)
+    }
+}
+
+impl fmt::Debug for ResolvedCstText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_str() {
+            Some(text) => f.debug_tuple("ResolvedCstText").field(&text).finish(),
+            None => f.debug_tuple("ResolvedCstText").field(&self.bytes).finish(),
+        }
+    }
+}
+
+impl PartialEq for ResolvedCstText {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for ResolvedCstText {}
 
 impl ResolvedCstNode {
     /// Node or terminal kind.
@@ -4878,7 +4909,7 @@ impl ResolvedCstNode {
 
     /// Source text for terminal leaves.
     pub fn text(&self) -> Option<&str> {
-        self.text.as_deref()
+        self.text.as_ref().and_then(ResolvedCstText::as_str)
     }
 
     /// Child items, including anonymous terminals.
@@ -4887,38 +4918,382 @@ impl ResolvedCstNode {
     }
 }
 
+/// Minimal recursive node view needed by typed AST/lowering materializers.
+pub trait ParseNode: Sized {
+    /// Node or terminal kind.
+    fn kind(&self) -> &str;
+
+    /// Whether this item is named in public traversal.
+    fn named(&self) -> bool;
+
+    /// Source text for terminal leaves.
+    fn text(&self) -> Option<&str>;
+
+    /// Ordered child items.
+    fn children(&self) -> &[Self];
+
+    /// Half-open source byte range `[start, end)`.
+    fn byte_range(&self) -> (usize, usize);
+}
+
+impl ParseNode for ResolvedCstNode {
+    fn kind(&self) -> &str {
+        self.kind()
+    }
+
+    fn named(&self) -> bool {
+        self.named()
+    }
+
+    fn text(&self) -> Option<&str> {
+        self.text()
+    }
+
+    fn children(&self) -> &[Self] {
+        self.children()
+    }
+
+    fn byte_range(&self) -> (usize, usize) {
+        let bytes = self.bytes();
+        (bytes.start().get() as usize, bytes.end().get() as usize)
+    }
+}
+
+/// Arena-backed resolved CST with anonymous terminals and source ranges preserved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedCstTree {
+    source: Arc<str>,
+    roots: Vec<usize>,
+    items: Vec<ResolvedCstItem>,
+}
+
+/// Borrowed handle into a [`ResolvedCstTree`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResolvedCstTreeNode<'a> {
+    tree: &'a ResolvedCstTree,
+    index: usize,
+}
+
+impl ResolvedCstTree {
+    /// Number of materialized items in this tree.
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Whether this tree has no items.
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    /// Number of root items.
+    pub fn root_count(&self) -> usize {
+        self.roots.len()
+    }
+
+    /// Single root item, when this tree has exactly one root.
+    pub fn root(&self) -> Option<ResolvedCstTreeNode<'_>> {
+        let [index] = self.roots.as_slice() else {
+            return None;
+        };
+        Some(ResolvedCstTreeNode {
+            tree: self,
+            index: *index,
+        })
+    }
+
+    /// Root items in source order.
+    pub fn roots(&self) -> impl ExactSizeIterator<Item = ResolvedCstTreeNode<'_>> + '_ {
+        self.roots
+            .iter()
+            .copied()
+            .map(|index| ResolvedCstTreeNode { tree: self, index })
+    }
+
+    /// Kind for the public root projection.
+    pub fn root_kind(&self) -> Option<&str> {
+        match self.roots.as_slice() {
+            [] => None,
+            [index] => Some(self.items[*index].kind.as_ref()),
+            _ => Some("ROOT"),
+        }
+    }
+
+    /// Materialize this arena tree into the owned recursive compatibility shape.
+    pub fn to_owned_node(&self) -> Option<ResolvedCstNode> {
+        if self.roots.is_empty() {
+            return None;
+        }
+        if self.roots.len() == 1 {
+            return Some(build_resolved_node(
+                self.roots[0],
+                &self.items,
+                &self.source,
+            ));
+        }
+
+        let first = self.roots[0];
+        let last = self.roots[self.roots.len() - 1];
+        let bytes = ByteRange::new(
+            self.items[first].bytes.start(),
+            self.items[last].bytes.end(),
+        )
+        .ok()?;
+        let points = PointRange::new(
+            self.items[first].points.start(),
+            self.items[last].points.end(),
+        )
+        .ok()?;
+        Some(ResolvedCstNode {
+            kind: "ROOT".into(),
+            symbol: None,
+            field: None,
+            node: None,
+            bytes,
+            points,
+            named: true,
+            visible: true,
+            extra: false,
+            text: None,
+            children: self
+                .roots
+                .iter()
+                .copied()
+                .map(|root| build_resolved_node(root, &self.items, &self.source))
+                .collect(),
+        })
+    }
+}
+
+impl<'a> ResolvedCstTreeNode<'a> {
+    fn item(&self) -> &'a ResolvedCstItem {
+        &self.tree.items[self.index]
+    }
+
+    /// Node or terminal kind.
+    pub fn kind(&self) -> &'a str {
+        self.item().kind.as_ref()
+    }
+
+    /// Parser symbol for terminal leaves, if this node came from a shifted token.
+    pub fn symbol(&self) -> Option<ParserSymbol> {
+        self.item().symbol
+    }
+
+    /// Field name attached by the grammar, when known.
+    pub fn field(&self) -> Option<&'a str> {
+        self.item().field.as_deref()
+    }
+
+    /// Parse tree node id, when this item materialized a tree node.
+    pub fn node(&self) -> Option<TreeNodeId> {
+        self.item().node
+    }
+
+    /// Source byte range.
+    pub fn bytes(&self) -> ByteRange {
+        self.item().bytes
+    }
+
+    /// Source point range.
+    pub fn points(&self) -> PointRange {
+        self.item().points
+    }
+
+    /// Whether this item is named in public traversal.
+    pub fn named(&self) -> bool {
+        self.item().named
+    }
+
+    /// Whether this item is visible in public traversal.
+    pub fn visible(&self) -> bool {
+        self.item().visible
+    }
+
+    /// Whether this item came from an extra token/node.
+    pub fn extra(&self) -> bool {
+        self.item().extra
+    }
+
+    /// Source text for terminal leaves.
+    pub fn text(&self) -> Option<&'a str> {
+        self.item()
+            .has_text
+            .then(|| source_slice(&self.tree.source, self.item().bytes))
+            .flatten()
+    }
+
+    /// Child items in source order.
+    pub fn children(&self) -> impl ExactSizeIterator<Item = ResolvedCstTreeNode<'a>> + '_ {
+        self.item()
+            .children
+            .iter()
+            .copied()
+            .map(|index| ResolvedCstTreeNode {
+                tree: self.tree,
+                index,
+            })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ResolvedCstItem {
-    kind: String,
+    kind: Arc<str>,
     symbol: Option<ParserSymbol>,
-    field: Option<String>,
+    field: Option<Arc<str>>,
     node: Option<TreeNodeId>,
     bytes: ByteRange,
     points: PointRange,
     named: bool,
     visible: bool,
     extra: bool,
-    text: Option<String>,
+    has_text: bool,
     order: usize,
-    children: Vec<usize>,
+    children: ResolvedCstChildren,
 }
+
+type ResolvedCstChildren = SmallVec<[usize; 4]>;
 
 pub(crate) struct ResolvedCstBuilder<'a> {
     parser: &'a ParserGrammar,
     input: &'a str,
-    field_by_child: HashMap<TreeNodeId, String>,
-    item_indices_by_node: HashMap<TreeNodeId, Vec<usize>>,
+    source: Arc<str>,
+    names: ResolvedCstNames,
+    field_by_child: Vec<Option<Arc<str>>>,
+    item_indices_by_node: Vec<SmallVec<[usize; 1]>>,
     items: Vec<ResolvedCstItem>,
+    roots: Vec<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedCstNames {
+    fields: Vec<Arc<str>>,
+    public_nodes: Vec<Arc<str>>,
+    aliases: Vec<Arc<str>>,
+    terminals: Vec<Arc<str>>,
+    nonterminals: Vec<Arc<str>>,
+    externals: Vec<Option<Arc<str>>>,
+    eof: Arc<str>,
+    error: Arc<str>,
+    missing: Arc<str>,
+    recovery: Arc<str>,
+}
+
+impl ResolvedCstNames {
+    pub(crate) fn from_parser(parser: &ParserGrammar) -> Self {
+        Self {
+            fields: parser
+                .fields
+                .iter()
+                .map(|field| Arc::<str>::from(field.name()))
+                .collect(),
+            public_nodes: parser
+                .public_node_kinds
+                .iter()
+                .map(|kind| Arc::<str>::from(kind.name()))
+                .collect(),
+            aliases: parser
+                .aliases
+                .iter()
+                .map(|alias| Arc::<str>::from(alias.value()))
+                .collect(),
+            terminals: parser
+                .symbols
+                .terminals
+                .iter()
+                .map(|terminal| {
+                    let name = match terminal.kind() {
+                        ParserTerminalKind::String | ParserTerminalKind::AutoClose => {
+                            terminal.spelling()
+                        }
+                        ParserTerminalKind::Pattern
+                        | ParserTerminalKind::Token
+                        | ParserTerminalKind::ImmediateToken => terminal
+                            .public_names()
+                            .first()
+                            .map(String::as_str)
+                            .unwrap_or_else(|| terminal.spelling()),
+                    };
+                    Arc::<str>::from(name)
+                })
+                .collect(),
+            nonterminals: parser
+                .symbols
+                .nonterminals
+                .iter()
+                .map(|nonterminal| Arc::<str>::from(nonterminal.name()))
+                .collect(),
+            externals: parser
+                .symbols
+                .externals
+                .iter()
+                .map(|external| external.name().map(Arc::<str>::from))
+                .collect(),
+            eof: Arc::<str>::from("EOF"),
+            error: Arc::<str>::from("ERROR"),
+            missing: Arc::<str>::from("MISSING"),
+            recovery: Arc::<str>::from("RECOVERY"),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn empty_for_tests() -> Self {
+        Self {
+            fields: Vec::new(),
+            public_nodes: Vec::new(),
+            aliases: Vec::new(),
+            terminals: Vec::new(),
+            nonterminals: Vec::new(),
+            externals: Vec::new(),
+            eof: Arc::<str>::from("EOF"),
+            error: Arc::<str>::from("ERROR"),
+            missing: Arc::<str>::from("MISSING"),
+            recovery: Arc::<str>::from("RECOVERY"),
+        }
+    }
 }
 
 impl<'a> ResolvedCstBuilder<'a> {
-    pub(crate) fn new(parser: &'a ParserGrammar, input: &'a str) -> Self {
+    pub(crate) fn with_capacity(
+        parser: &'a ParserGrammar,
+        input: &'a str,
+        capacity: usize,
+    ) -> Self {
+        Self::with_node_capacity(parser, input, capacity, 0)
+    }
+
+    pub(crate) fn with_node_capacity(
+        parser: &'a ParserGrammar,
+        input: &'a str,
+        capacity: usize,
+        node_capacity: usize,
+    ) -> Self {
+        Self::with_names_and_node_capacity(
+            parser,
+            input,
+            capacity,
+            node_capacity,
+            ResolvedCstNames::from_parser(parser),
+        )
+    }
+
+    pub(crate) fn with_names_and_node_capacity(
+        parser: &'a ParserGrammar,
+        input: &'a str,
+        capacity: usize,
+        node_capacity: usize,
+        names: ResolvedCstNames,
+    ) -> Self {
+        let mut item_indices_by_node = Vec::with_capacity(node_capacity);
+        item_indices_by_node.resize_with(node_capacity, SmallVec::new);
         Self {
             parser,
             input,
-            field_by_child: HashMap::new(),
-            item_indices_by_node: HashMap::new(),
-            items: Vec::new(),
+            source: Arc::<str>::from(input),
+            names,
+            field_by_child: vec![None; node_capacity],
+            item_indices_by_node,
+            items: Vec::with_capacity(capacity),
+            roots: Vec::new(),
         }
     }
 
@@ -4930,12 +5305,7 @@ impl<'a> ResolvedCstBuilder<'a> {
                 field,
                 ..
             } => {
-                if let Some(name) = self
-                    .parser
-                    .fields
-                    .get(field.get() as usize)
-                    .map(|decl| decl.name().to_owned())
-                {
+                if let Some(name) = self.field_name(*field) {
                     self.attach_field(*child, name);
                 }
             }
@@ -4947,9 +5317,8 @@ impl<'a> ResolvedCstBuilder<'a> {
                 named,
                 ..
             } => {
-                let text = source_slice(self.input, *bytes).map(str::to_owned);
                 self.push_item(ResolvedCstItem {
-                    kind: parser_symbol_kind(self.parser, *symbol, text.as_deref()),
+                    kind: self.token_symbol_kind(*symbol, *bytes),
                     symbol: Some(*symbol),
                     field: None,
                     node: None,
@@ -4958,9 +5327,9 @@ impl<'a> ResolvedCstBuilder<'a> {
                     named: *named,
                     visible: true,
                     extra: *extra,
-                    text,
+                    has_text: true,
                     order,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 });
             }
             TreeEvent::Reduce {
@@ -4974,20 +5343,18 @@ impl<'a> ResolvedCstBuilder<'a> {
                     self.parser.production_metadata[metadata.get() as usize].public_node()
                 {
                     self.push_item(ResolvedCstItem {
-                        kind: self.parser.public_node_kinds[public_node.get() as usize]
-                            .name()
-                            .to_owned(),
+                        kind: self.public_node_kind(public_node),
                         symbol: None,
-                        field: self.field_by_child.get(node).cloned(),
+                        field: self.field_for_node(*node),
                         node: Some(*node),
                         bytes: *bytes,
                         points: *points,
                         named: true,
                         visible: true,
                         extra: false,
-                        text: None,
+                        has_text: false,
                         order,
-                        children: Vec::new(),
+                        children: SmallVec::new(),
                     });
                 }
             }
@@ -4999,20 +5366,18 @@ impl<'a> ResolvedCstBuilder<'a> {
                 ..
             } => {
                 self.push_item(ResolvedCstItem {
-                    kind: self.parser.public_node_kinds[public_node.get() as usize]
-                        .name()
-                        .to_owned(),
+                    kind: self.public_node_kind(*public_node),
                     symbol: None,
-                    field: self.field_by_child.get(node).cloned(),
+                    field: self.field_for_node(*node),
                     node: Some(*node),
                     bytes: *bytes,
                     points: *points,
                     named: true,
                     visible: true,
                     extra: true,
-                    text: None,
+                    has_text: false,
                     order,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 });
             }
             TreeEvent::Error {
@@ -5022,18 +5387,18 @@ impl<'a> ResolvedCstBuilder<'a> {
                 ..
             } => {
                 self.push_item(ResolvedCstItem {
-                    kind: "ERROR".to_owned(),
+                    kind: Arc::clone(&self.names.error),
                     symbol: None,
-                    field: self.field_by_child.get(node).cloned(),
+                    field: self.field_for_node(*node),
                     node: Some(*node),
                     bytes: *bytes,
                     points: *points,
                     named: true,
                     visible: true,
                     extra: false,
-                    text: None,
+                    has_text: false,
                     order,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 });
             }
             TreeEvent::Missing {
@@ -5043,7 +5408,7 @@ impl<'a> ResolvedCstBuilder<'a> {
                 ..
             } => {
                 self.push_item(ResolvedCstItem {
-                    kind: parser_symbol_kind(self.parser, *symbol, None),
+                    kind: self.symbol_kind(*symbol, None),
                     symbol: Some(*symbol),
                     field: None,
                     node: None,
@@ -5052,9 +5417,9 @@ impl<'a> ResolvedCstBuilder<'a> {
                     named: false,
                     visible: true,
                     extra: false,
-                    text: None,
+                    has_text: false,
                     order,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 });
             }
             TreeEvent::Alias {
@@ -5065,20 +5430,19 @@ impl<'a> ResolvedCstBuilder<'a> {
                 points,
                 ..
             } => {
-                let kind = self.parser.aliases[alias.get() as usize].value().to_owned();
                 self.push_item(ResolvedCstItem {
-                    kind,
+                    kind: self.alias_kind(*alias),
                     symbol: None,
-                    field: self.field_by_child.get(node).cloned(),
+                    field: self.field_for_node(*node),
                     node: Some(*node),
                     bytes: *bytes,
                     points: *points,
                     named: *named,
                     visible: true,
                     extra: false,
-                    text: None,
+                    has_text: false,
                     order,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 });
             }
             TreeEvent::OpenNode { .. }
@@ -5095,44 +5459,13 @@ impl<'a> ResolvedCstBuilder<'a> {
             return None;
         }
 
-        let mut parents = vec![None; self.items.len()];
-        for (child, parent_slot) in parents.iter_mut().enumerate() {
-            let mut best = None::<(usize, usize, usize)>;
-            for parent in 0..self.items.len() {
-                if parent == child
-                    || self.items[parent].node.is_none()
-                    || !resolved_item_contains(&self.items[parent], &self.items[child])
-                {
-                    continue;
-                }
-                let key = (
-                    resolved_item_len(&self.items[parent]),
-                    self.items[parent].order,
-                    parent,
-                );
-                if best.is_none_or(|best| key < best) {
-                    best = Some(key);
-                }
-            }
-            *parent_slot = best.map(|(_, _, parent)| parent);
-        }
-        for (child, parent) in parents.iter().enumerate() {
-            if let Some(parent) = *parent {
-                self.items[parent].children.push(child);
-            }
-        }
-
-        let mut roots = parents
-            .iter()
-            .enumerate()
-            .filter_map(|(index, parent)| parent.is_none().then_some(index))
-            .collect::<Vec<_>>();
+        self.debug_assert_online_attachment_matches_range_sort();
+        let roots = std::mem::take(&mut self.roots);
         if roots.is_empty() {
             return None;
         }
-        sort_resolved_children(&mut roots, &self.items);
         if roots.len() == 1 {
-            return Some(build_resolved_node(roots[0], &self.items));
+            return Some(build_resolved_node(roots[0], &self.items, &self.source));
         }
 
         let first = roots[0];
@@ -5148,7 +5481,7 @@ impl<'a> ResolvedCstBuilder<'a> {
         )
         .ok()?;
         Some(ResolvedCstNode {
-            kind: "ROOT".to_owned(),
+            kind: "ROOT".into(),
             symbol: None,
             field: None,
             node: None,
@@ -5160,17 +5493,33 @@ impl<'a> ResolvedCstBuilder<'a> {
             text: None,
             children: roots
                 .into_iter()
-                .map(|root| build_resolved_node(root, &self.items))
+                .map(|root| build_resolved_node(root, &self.items, &self.source))
                 .collect(),
         })
     }
 
-    fn attach_field(&mut self, node: TreeNodeId, name: String) {
-        self.field_by_child.insert(node, name.clone());
-        if let Some(indices) = self.item_indices_by_node.get(&node) {
-            for index in indices {
-                self.items[*index].field = Some(name.clone());
-            }
+    pub(crate) fn finish_tree(mut self) -> Option<ResolvedCstTree> {
+        if self.items.is_empty() {
+            return None;
+        }
+
+        self.debug_assert_online_attachment_matches_range_sort();
+        let roots = std::mem::take(&mut self.roots);
+        if roots.is_empty() {
+            return None;
+        }
+        Some(ResolvedCstTree {
+            source: self.source,
+            roots,
+            items: self.items,
+        })
+    }
+
+    fn attach_field(&mut self, node: TreeNodeId, name: Arc<str>) {
+        let slot = self.ensure_node_slot(node);
+        self.field_by_child[slot] = Some(name.clone());
+        for index in &self.item_indices_by_node[slot] {
+            self.items[*index].field = Some(name.clone());
         }
     }
 
@@ -5179,10 +5528,188 @@ impl<'a> ResolvedCstBuilder<'a> {
         let index = self.items.len();
         self.items.push(item);
         if let Some(node) = node {
+            let slot = self.ensure_node_slot(node);
+            self.item_indices_by_node[slot].push(index);
+        }
+        self.attach_item_to_roots(index);
+    }
+
+    fn attach_item_to_roots(&mut self, item_index: usize) {
+        if self.items[item_index].node.is_none() {
+            let insert_at = self.root_insert_position(item_index);
+            self.roots.insert(insert_at, item_index);
+            return;
+        }
+
+        if let Some(last) = self.roots.last().copied()
+            && resolved_item_contains(&self.items[item_index], &self.items[last])
+        {
+            let mut first_child = self.roots.len() - 1;
+            while first_child > 0
+                && resolved_item_contains(
+                    &self.items[item_index],
+                    &self.items[self.roots[first_child - 1]],
+                )
+            {
+                first_child -= 1;
+            }
+            self.items[item_index].children = self.roots.drain(first_child..).collect();
+            self.roots.push(item_index);
+            return;
+        }
+
+        let parent_start = self.items[item_index].bytes.start().get();
+        let parent_end = self.items[item_index].bytes.end().get();
+        let mut first_child = self
+            .roots
+            .partition_point(|root| self.items[*root].bytes.start().get() < parent_start);
+        while first_child < self.roots.len()
+            && self.items[self.roots[first_child]].bytes.start().get() <= parent_end
+            && !resolved_item_contains(
+                &self.items[item_index],
+                &self.items[self.roots[first_child]],
+            )
+        {
+            first_child += 1;
+        }
+
+        let mut after_children = first_child;
+        while after_children < self.roots.len()
+            && resolved_item_contains(
+                &self.items[item_index],
+                &self.items[self.roots[after_children]],
+            )
+        {
+            after_children += 1;
+        }
+
+        if first_child == after_children {
+            let insert_at = self.root_insert_position(item_index);
+            self.roots.insert(insert_at, item_index);
+            return;
+        }
+
+        self.items[item_index].children = self.roots.drain(first_child..after_children).collect();
+        self.roots.insert(first_child, item_index);
+    }
+
+    fn root_insert_position(&self, item_index: usize) -> usize {
+        let key = resolved_item_order_key(&self.items[item_index]);
+        if self
+            .roots
+            .last()
+            .is_none_or(|root| resolved_item_order_key(&self.items[*root]) < key)
+        {
+            return self.roots.len();
+        }
+        self.roots
+            .partition_point(|root| resolved_item_order_key(&self.items[*root]) < key)
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_online_attachment_matches_range_sort(&self) {
+        if self.items.len() > 4096 {
+            return;
+        }
+
+        let mut items = self.items.clone();
+        let mut roots = attach_resolved_children_from_ranges(&mut items);
+        sort_resolved_children(&mut roots, &items);
+        for index in 0..items.len() {
+            let mut children = std::mem::take(&mut items[index].children);
+            sort_resolved_children(&mut children, &items);
+            items[index].children = children;
+        }
+
+        debug_assert_eq!(self.roots, roots);
+        for (index, (actual, expected)) in self.items.iter().zip(&items).enumerate() {
+            debug_assert_eq!(
+                actual.children, expected.children,
+                "resolved CST child attachment mismatch at item {index}"
+            );
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn debug_assert_online_attachment_matches_range_sort(&self) {}
+
+    fn ensure_node_slot(&mut self, node: TreeNodeId) -> usize {
+        let slot = node.get() as usize;
+        if slot >= self.field_by_child.len() {
+            self.field_by_child.resize_with(slot + 1, || None);
+        }
+        if slot >= self.item_indices_by_node.len() {
             self.item_indices_by_node
-                .entry(node)
-                .or_default()
-                .push(index);
+                .resize_with(slot + 1, SmallVec::new);
+        }
+        slot
+    }
+
+    fn field_for_node(&self, node: TreeNodeId) -> Option<Arc<str>> {
+        self.field_by_child
+            .get(node.get() as usize)
+            .and_then(Clone::clone)
+    }
+
+    fn field_name(&self, field: FieldId) -> Option<Arc<str>> {
+        self.names.fields.get(field.get() as usize).cloned()
+    }
+
+    fn public_node_kind(&self, public_node: PublicNodeKindId) -> Arc<str> {
+        self.names
+            .public_nodes
+            .get(public_node.get() as usize)
+            .cloned()
+            .unwrap_or_else(|| {
+                Arc::<str>::from(self.parser.public_node_kinds[public_node.get() as usize].name())
+            })
+    }
+
+    fn alias_kind(&self, alias: AliasId) -> Arc<str> {
+        self.names
+            .aliases
+            .get(alias.get() as usize)
+            .cloned()
+            .unwrap_or_else(|| Arc::<str>::from(self.parser.aliases[alias.get() as usize].value()))
+    }
+
+    fn token_symbol_kind(&self, symbol: ParserSymbol, bytes: ByteRange) -> Arc<str> {
+        if let ParserSymbol::External(external) = symbol {
+            return self
+                .names
+                .externals
+                .get(external.get() as usize)
+                .and_then(Clone::clone)
+                .unwrap_or_else(|| {
+                    Arc::<str>::from(source_slice(self.input, bytes).unwrap_or("<external>"))
+                });
+        }
+
+        self.symbol_kind(symbol, None)
+    }
+
+    fn symbol_kind(&self, symbol: ParserSymbol, token_text: Option<&str>) -> Arc<str> {
+        match symbol {
+            ParserSymbol::Terminal(terminal) => {
+                self.names.terminals[terminal.get() as usize].clone()
+            }
+            ParserSymbol::Nonterminal(nonterminal) => {
+                self.names.nonterminals[nonterminal.get() as usize].clone()
+            }
+            ParserSymbol::External(external) => self
+                .names
+                .externals
+                .get(external.get() as usize)
+                .and_then(Clone::clone)
+                .unwrap_or_else(|| Arc::<str>::from(token_text.unwrap_or("<external>"))),
+            ParserSymbol::Eof => Arc::clone(&self.names.eof),
+            ParserSymbol::Internal(internal) => {
+                match self.parser.symbols.internal[internal.get() as usize].kind() {
+                    InternalSymbolKind::Error => Arc::clone(&self.names.error),
+                    InternalSymbolKind::Missing => Arc::clone(&self.names.missing),
+                    InternalSymbolKind::Recovery => Arc::clone(&self.names.recovery),
+                }
+            }
         }
     }
 }
@@ -5193,14 +5720,114 @@ fn resolved_item_contains(parent: &ResolvedCstItem, child: &ResolvedCstItem) -> 
         && child.bytes.end() <= parent.bytes.end()
 }
 
+fn resolved_item_order_key(item: &ResolvedCstItem) -> (u32, u32, usize) {
+    (item.bytes.start().get(), item.bytes.end().get(), item.order)
+}
+
+#[cfg(any(debug_assertions, test))]
+fn attach_resolved_children_from_ranges(items: &mut [ResolvedCstItem]) -> Vec<usize> {
+    let parents = resolved_parent_slots_by_range_sort(items);
+    let mut child_counts = vec![0usize; items.len()];
+    let mut root_count = 0usize;
+    for parent in &parents {
+        if let Some(parent) = parent {
+            child_counts[*parent] += 1;
+        } else {
+            root_count += 1;
+        }
+    }
+
+    for item in items.iter_mut() {
+        item.children.clear();
+    }
+    for (item, child_count) in items.iter_mut().zip(child_counts) {
+        item.children.reserve(child_count);
+    }
+
+    let mut roots = Vec::<usize>::with_capacity(root_count);
+    for (child, parent) in parents.into_iter().enumerate() {
+        if let Some(parent) = parent {
+            items[parent].children.push(child);
+        } else {
+            roots.push(child);
+        }
+    }
+    roots
+}
+
+#[cfg(any(debug_assertions, test))]
+fn resolved_parent_slots_by_range_sort(items: &[ResolvedCstItem]) -> Vec<Option<usize>> {
+    let mut indices = (0..items.len()).collect::<Vec<_>>();
+    indices.sort_unstable_by_key(|index| {
+        let item = &items[*index];
+        (
+            item.bytes.start().get(),
+            std::cmp::Reverse(item.bytes.end().get()),
+            std::cmp::Reverse(item.order),
+            std::cmp::Reverse(*index),
+        )
+    });
+
+    let mut parents = vec![None; items.len()];
+    let mut ancestors = Vec::<usize>::new();
+    for child in indices {
+        while let Some(parent) = ancestors.last().copied() {
+            if resolved_item_contains(&items[parent], &items[child]) {
+                break;
+            }
+            ancestors.pop();
+        }
+        parents[child] = ancestors.last().copied();
+        if items[child].node.is_some() {
+            ancestors.push(child);
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    if items.len() <= 4096 {
+        debug_assert_eq!(parents, resolved_parent_slots_quadratic(items));
+    }
+
+    parents
+}
+
+#[cfg(debug_assertions)]
+fn resolved_parent_slots_quadratic(items: &[ResolvedCstItem]) -> Vec<Option<usize>> {
+    let mut parents = vec![None; items.len()];
+    for (child, parent_slot) in parents.iter_mut().enumerate() {
+        let mut best = None::<(usize, usize, usize)>;
+        for parent in 0..items.len() {
+            if parent == child
+                || items[parent].node.is_none()
+                || !resolved_item_contains(&items[parent], &items[child])
+            {
+                continue;
+            }
+            let key = (
+                resolved_item_len(&items[parent]),
+                items[parent].order,
+                parent,
+            );
+            if best.is_none_or(|best| key < best) {
+                best = Some(key);
+            }
+        }
+        *parent_slot = best.map(|(_, _, parent)| parent);
+    }
+    parents
+}
+
+#[cfg(debug_assertions)]
 fn resolved_item_len(item: &ResolvedCstItem) -> usize {
     item.bytes.end().get() as usize - item.bytes.start().get() as usize
 }
 
-fn build_resolved_node(index: usize, items: &[ResolvedCstItem]) -> ResolvedCstNode {
+fn build_resolved_node(
+    index: usize,
+    items: &[ResolvedCstItem],
+    source: &Arc<str>,
+) -> ResolvedCstNode {
     let item = &items[index];
-    let mut children = item.children.clone();
-    sort_resolved_children(&mut children, items);
     ResolvedCstNode {
         kind: item.kind.clone(),
         symbol: item.symbol,
@@ -5211,16 +5838,25 @@ fn build_resolved_node(index: usize, items: &[ResolvedCstItem]) -> ResolvedCstNo
         named: item.named,
         visible: item.visible,
         extra: item.extra,
-        text: item.text.clone(),
-        children: children
-            .into_iter()
-            .map(|child| build_resolved_node(child, items))
+        text: item.has_text.then(|| ResolvedCstText {
+            source: Arc::clone(source),
+            bytes: item.bytes,
+        }),
+        children: item
+            .children
+            .iter()
+            .copied()
+            .map(|child| build_resolved_node(child, items, source))
             .collect(),
     }
 }
 
+#[cfg(any(debug_assertions, test))]
 fn sort_resolved_children(children: &mut [usize], items: &[ResolvedCstItem]) {
-    children.sort_by_key(|child| {
+    if children.len() < 2 {
+        return;
+    }
+    children.sort_unstable_by_key(|child| {
         let item = &items[*child];
         (item.bytes.start().get(), item.bytes.end().get(), item.order)
     });
@@ -5230,46 +5866,6 @@ fn source_slice(input: &str, bytes: ByteRange) -> Option<&str> {
     let start = bytes.start().get() as usize;
     let end = bytes.end().get() as usize;
     input.get(start..end)
-}
-
-fn parser_symbol_kind(
-    parser: &ParserGrammar,
-    symbol: ParserSymbol,
-    token_text: Option<&str>,
-) -> String {
-    match symbol {
-        ParserSymbol::Terminal(terminal) => {
-            let terminal = &parser.symbols.terminals[terminal.get() as usize];
-            match terminal.kind() {
-                ParserTerminalKind::String | ParserTerminalKind::AutoClose => {
-                    terminal.spelling().to_owned()
-                }
-                ParserTerminalKind::Pattern
-                | ParserTerminalKind::Token
-                | ParserTerminalKind::ImmediateToken => terminal
-                    .public_names()
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| terminal.spelling().to_owned()),
-            }
-        }
-        ParserSymbol::Nonterminal(nonterminal) => parser.symbols.nonterminals
-            [nonterminal.get() as usize]
-            .name()
-            .to_owned(),
-        ParserSymbol::External(external) => parser.symbols.externals[external.get() as usize]
-            .name()
-            .map(str::to_owned)
-            .unwrap_or_else(|| token_text.unwrap_or("<external>").to_owned()),
-        ParserSymbol::Eof => "EOF".to_owned(),
-        ParserSymbol::Internal(internal) => {
-            match parser.symbols.internal[internal.get() as usize].kind() {
-                InternalSymbolKind::Error => "ERROR".to_owned(),
-                InternalSymbolKind::Missing => "MISSING".to_owned(),
-                InternalSymbolKind::Recovery => "RECOVERY".to_owned(),
-            }
-        }
-    }
 }
 
 pub(crate) fn visit_tree_events_for_version_lineage(
@@ -6406,6 +7002,57 @@ extras (
         texts
     }
 
+    fn test_resolved_range(start: u32, end: u32) -> (ByteRange, PointRange) {
+        use crate::runtime_input::{ByteOffset, PointBytes, Row, Utf8ColumnBytes};
+
+        let bytes = ByteRange::new(ByteOffset::new(start), ByteOffset::new(end)).unwrap();
+        let points = PointRange::new(
+            PointBytes::new(Row::new(0), Utf8ColumnBytes::new(start)),
+            PointBytes::new(Row::new(0), Utf8ColumnBytes::new(end)),
+        )
+        .unwrap();
+        (bytes, points)
+    }
+
+    fn test_resolved_item(
+        kind: &str,
+        node: Option<TreeNodeId>,
+        start: u32,
+        end: u32,
+        order: usize,
+    ) -> ResolvedCstItem {
+        let (bytes, points) = test_resolved_range(start, end);
+        ResolvedCstItem {
+            kind: Arc::<str>::from(kind),
+            symbol: None,
+            field: None,
+            node,
+            bytes,
+            points,
+            named: node.is_some(),
+            visible: true,
+            extra: false,
+            has_text: false,
+            order,
+            children: SmallVec::new(),
+        }
+    }
+
+    #[test]
+    fn resolved_cst_attachment_handles_interleaved_event_order_roots() {
+        let mut items = vec![
+            test_resolved_item("child", None, 0, 1, 0),
+            test_resolved_item("later_sibling", None, 5, 6, 1),
+            test_resolved_item("parent", Some(TreeNodeId::from_index(0)), 0, 2, 2),
+        ];
+
+        let mut roots = attach_resolved_children_from_ranges(&mut items);
+        sort_resolved_children(&mut roots, &items);
+
+        assert_eq!(items[2].children.as_slice(), &[0]);
+        assert_eq!(roots, vec![2, 1]);
+    }
+
     fn assert_styx_authored_gingembre_rejects_like_gingembre(input: &str) {
         let gingembre = gingembre_syntax::parse(input);
         assert!(
@@ -6544,6 +7191,32 @@ extras (
         assert_eq!(tree.kind(), "template");
         assert!(texts.contains(&"+"), "resolved terminals: {texts:?}");
         assert!(texts.contains(&"*"), "resolved terminals: {texts:?}");
+    }
+
+    #[test]
+    fn prepared_weavy_resolved_cst_materializes_like_resolved_tree() {
+        let (_, parser, table, plan) = authored_gingembre_weavy_fixture();
+        let input = "{{ 1 + 2 * 3 }}";
+        let tree =
+            crate::lower::weavy::parse_prepared_weavy_resolved_tree(plan, parser, table, input)
+                .unwrap();
+        let arena =
+            crate::lower::weavy::parse_prepared_weavy_resolved_cst(plan, parser, table, input)
+                .unwrap();
+        let report = crate::lower::weavy::parse_prepared_weavy_resolved_cst_report(
+            plan, parser, table, input,
+        )
+        .unwrap();
+
+        assert_eq!(arena.root_kind(), Some("template"));
+        assert_eq!(arena.to_owned_node(), Some(tree.clone()));
+        assert_eq!(report.tree().to_owned_node(), Some(tree));
+        assert!(report.lexer_stats().lex_call_count > 0);
+        assert!(report.snark_stats().intrinsic_count > 0);
+        assert_eq!(
+            report.execution_lane(),
+            crate::lower::weavy::WeavyParseExecutionLane::Direct
+        );
     }
 
     #[test]

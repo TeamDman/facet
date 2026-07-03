@@ -15,6 +15,15 @@
 //!   # strict parse to ranged CST, using the deterministic direct resolved-tree path
 //!   cargo run --release -p snark-ts-diff -- resolved <grammar.js|grammar.json> <input-file> [iters]
 //!
+//!   # strict parse to arena-backed ranged CST, skipping owned recursive materialization
+//!   cargo run --release -p snark-ts-diff -- resolved-cst <grammar.js|grammar.json> <input-file> [iters]
+//!
+//!   # strict parse to arena-backed ranged CST while retaining execution counters
+//!   cargo run --release -p snark-ts-diff -- resolved-cst-report <grammar.js|grammar.json> <input-file> [iters]
+//!
+//!   # strict parse with the same execution counters as hostcalls mode
+//!   cargo run --release -p snark-ts-diff -- report <grammar.js|grammar.json> <input-file> [iters]
+//!
 //!   # strict parse through Weavy host-call blocks; requires --features jit
 //!   cargo run --release -p snark-ts-diff --features jit -- hostcalls <grammar.js|grammar.json> <input-file> [iters]
 //!
@@ -40,9 +49,12 @@ use snark::{
     grammar::RawGrammarJson,
     lexical::LexicalFacts,
     lower::weavy::{
-        SnarkStencilProfile, WeavyLexerStencilSummary, WeavyParseError, WeavyParsePlan,
-        WeavyParseReport, WeavyParseWorkspace, WeavySnarkProfileStencilReadiness,
-        parse_prepared_weavy_resolved_tree,
+        SnarkStencilProfile, WeavyHostCallExecutionStats, WeavyLexerExecutionStats,
+        WeavyLexerStencilSummary, WeavyParseError, WeavyParseExecutionLane, WeavyParsePlan,
+        WeavyParseReport, WeavyParseWorkspace, WeavyResolvedCstReport,
+        WeavyRuntimeBackendExecutionSummary, WeavySnarkDescriptorExecutionSummary,
+        WeavySnarkExecutionStats, WeavySnarkProfileStencilReadiness,
+        parse_prepared_weavy_with_report,
     },
     parser::{ParseTable, ParserGrammar, TreeEvent},
     validated::ValidatedGrammar,
@@ -193,8 +205,19 @@ fn write_stencil_profile(
     if let Some(summary) = profile.dominant_backend_execution() {
         writeln!(
             out,
-            "{label}_dominant_backend_execution: {:?} parser={} lexer={} total={}",
-            summary.execution, summary.parser_count, summary.lexer_count, summary.total_count
+            "{label}_dominant_backend_execution: {:?} parser={} lexer={} total={} effect_order={:?} may_fail={} may_allocate={} calls_user_code={} opaque={} resources={:?} typed_memory={:?} state={:?}",
+            summary.execution,
+            summary.parser_count,
+            summary.lexer_count,
+            summary.total_count,
+            summary.effect.ordering,
+            summary.effect.may_fail,
+            summary.effect.may_allocate,
+            summary.effect.calls_user_code,
+            summary.effect.opaque,
+            summary.effect.resources,
+            summary.effect.typed_memory,
+            summary.state
         )?;
     } else {
         writeln!(out, "{label}_dominant_backend_execution: none")?;
@@ -208,8 +231,19 @@ fn write_stencil_profile(
         for summary in backend_execution {
             writeln!(
                 out,
-                "  {:?}: parser={} lexer={} total={}",
-                summary.execution, summary.parser_count, summary.lexer_count, summary.total_count
+                "  {:?}: parser={} lexer={} total={} effect_order={:?} may_fail={} may_allocate={} calls_user_code={} opaque={} resources={:?} typed_memory={:?} state={:?}",
+                summary.execution,
+                summary.parser_count,
+                summary.lexer_count,
+                summary.total_count,
+                summary.effect.ordering,
+                summary.effect.may_fail,
+                summary.effect.may_allocate,
+                summary.effect.calls_user_code,
+                summary.effect.opaque,
+                summary.effect.resources,
+                summary.effect.typed_memory,
+                summary.state
             )?;
         }
     }
@@ -264,8 +298,18 @@ fn write_lexer_stencils(
         for summary in summaries {
             writeln!(
                 out,
-                "  {:?} execution={:?} state={:?} count={}",
-                summary.kind, summary.execution, summary.state, summary.count
+                "  {:?} execution={:?} effect_order={:?} may_fail={} may_allocate={} calls_user_code={} opaque={} resources={:?} typed_memory={:?} state={:?} count={}",
+                summary.kind,
+                summary.execution,
+                summary.effect.ordering,
+                summary.effect.may_fail,
+                summary.effect.may_allocate,
+                summary.effect.calls_user_code,
+                summary.effect.opaque,
+                summary.effect.resources,
+                summary.effect.typed_memory,
+                summary.state,
+                summary.count
             )?;
         }
     }
@@ -274,11 +318,51 @@ fn write_lexer_stencils(
 
 /// Best (min) ranged-CST parse time in ms over `iters` runs, after one warm-up.
 fn best_resolved_ms(p: &Prepared, input: &str, iters: usize) -> Result<f64, WeavyParseError> {
-    let _ = parse_prepared_weavy_resolved_tree(&p.plan, &p.parser, &p.table, input)?;
+    let _ = p
+        .workspace
+        .parse_resolved_tree(&p.plan, &p.parser, &p.table, input)?;
     let mut best_ms = f64::INFINITY;
     for _ in 0..iters.max(1) {
         let start = Instant::now();
-        let _ = parse_prepared_weavy_resolved_tree(&p.plan, &p.parser, &p.table, input)?;
+        let _ = p
+            .workspace
+            .parse_resolved_tree(&p.plan, &p.parser, &p.table, input)?;
+        best_ms = best_ms.min(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    Ok(best_ms)
+}
+
+/// Best (min) arena-CST parse time in ms over `iters` runs, after one warm-up.
+fn best_resolved_cst_ms(p: &Prepared, input: &str, iters: usize) -> Result<f64, WeavyParseError> {
+    let _ = p
+        .workspace
+        .parse_resolved_cst(&p.plan, &p.parser, &p.table, input)?;
+    let mut best_ms = f64::INFINITY;
+    for _ in 0..iters.max(1) {
+        let start = Instant::now();
+        let _ = p
+            .workspace
+            .parse_resolved_cst(&p.plan, &p.parser, &p.table, input)?;
+        best_ms = best_ms.min(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    Ok(best_ms)
+}
+
+/// Best (min) arena-CST report parse time in ms over `iters` runs, after one warm-up.
+fn best_resolved_cst_report_ms(
+    p: &Prepared,
+    input: &str,
+    iters: usize,
+) -> Result<f64, WeavyParseError> {
+    let _ = p
+        .workspace
+        .parse_resolved_cst_report(&p.plan, &p.parser, &p.table, input)?;
+    let mut best_ms = f64::INFINITY;
+    for _ in 0..iters.max(1) {
+        let start = Instant::now();
+        let _ = p
+            .workspace
+            .parse_resolved_cst_report(&p.plan, &p.parser, &p.table, input)?;
         best_ms = best_ms.min(start.elapsed().as_secs_f64() * 1000.0);
     }
     Ok(best_ms)
@@ -294,6 +378,10 @@ fn recover_once(p: &Prepared, input: &str) -> Result<WeavyParseReport, WeavyPars
 fn collect_once(p: &Prepared, input: &str) -> Result<WeavyParseReport, WeavyParseError> {
     p.workspace
         .parse_collecting_reuse_with_report_and_scanner(&p.plan, &p.parser, &p.table, input, None)
+}
+
+fn report_once(p: &Prepared, input: &str) -> Result<WeavyParseReport, WeavyParseError> {
+    parse_prepared_weavy_with_report(&p.plan, &p.parser, &p.table, input)
 }
 
 #[cfg(all(
@@ -342,6 +430,17 @@ fn best_collect_ms(p: &Prepared, input: &str, iters: usize) -> Result<f64, Weavy
     Ok(best_ms)
 }
 
+fn best_report_ms(p: &Prepared, input: &str, iters: usize) -> Result<f64, WeavyParseError> {
+    let _ = report_once(p, input)?;
+    let mut best_ms = f64::INFINITY;
+    for _ in 0..iters.max(1) {
+        let start = Instant::now();
+        let _ = report_once(p, input)?;
+        best_ms = best_ms.min(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    Ok(best_ms)
+}
+
 #[cfg(all(
     feature = "jit",
     any(
@@ -372,7 +471,10 @@ fn error_counts(report: &WeavyParseReport) -> (usize, usize) {
 }
 
 fn print_lexer_execution_stats(report: &WeavyParseReport) {
-    let stats = report.lexer_stats();
+    print_lexer_execution_stats_from(report.lexer_stats());
+}
+
+fn print_lexer_execution_stats_from(stats: &WeavyLexerExecutionStats) {
     let summaries = stats.stencil_execution_summaries();
     let stencils = if summaries.is_empty() {
         "none".to_owned()
@@ -402,7 +504,55 @@ fn print_lexer_execution_stats(report: &WeavyParseReport) {
 }
 
 fn print_snark_execution_stats(report: &WeavyParseReport) {
-    let stats = report.snark_stats();
+    print_snark_execution_stats_from(
+        report.snark_stats(),
+        report.execution_lane(),
+        report.hostcall_stats(),
+    );
+    print_runtime_backend_execution_stats(report.backend_execution_summaries());
+}
+
+fn print_resolved_cst_execution_stats(report: &WeavyResolvedCstReport) {
+    print_snark_execution_stats_from(
+        report.snark_stats(),
+        report.execution_lane(),
+        report.hostcall_stats(),
+    );
+    print_lexer_execution_stats_from(report.lexer_stats());
+    print_runtime_backend_execution_stats(report.backend_execution_summaries());
+}
+
+fn print_runtime_backend_execution_stats(summaries: Vec<WeavyRuntimeBackendExecutionSummary>) {
+    if let Some(summary) = summaries.first() {
+        println!(
+            "runtime_dominant_backend_execution: {:?} parser={} lexer={} total={}",
+            summary.execution, summary.parser_count, summary.lexer_count, summary.total_count
+        );
+    } else {
+        println!("runtime_dominant_backend_execution: none");
+    }
+    if summaries.is_empty() {
+        println!("runtime_backend_execution: none");
+        return;
+    }
+    let lanes = summaries
+        .iter()
+        .map(|summary| {
+            format!(
+                "{:?}=parser:{},lexer:{},total:{}",
+                summary.execution, summary.parser_count, summary.lexer_count, summary.total_count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    println!("runtime_backend_execution: {lanes}");
+}
+
+fn print_snark_execution_stats_from(
+    stats: &WeavySnarkExecutionStats,
+    execution_lane: WeavyParseExecutionLane,
+    hostcalls: &WeavyHostCallExecutionStats,
+) {
     let summaries = stats.family_execution_summaries();
     let families = if summaries.is_empty() {
         "none".to_owned()
@@ -422,7 +572,8 @@ fn print_snark_execution_stats(report: &WeavyParseReport) {
         "snark_execution: intrinsics={} families={}",
         stats.intrinsic_count, families
     );
-    println!("parse_execution_lane: {:?}", report.execution_lane());
+    print_snark_descriptor_execution_stats(stats.descriptor_execution_summaries());
+    println!("parse_execution_lane: {execution_lane:?}");
     if let Some(summary) = stats.dominant_family_execution() {
         println!(
             "snark_dominant_execution: {:?}/{:?} count={}",
@@ -431,7 +582,6 @@ fn print_snark_execution_stats(report: &WeavyParseReport) {
     } else {
         println!("snark_dominant_execution: none");
     }
-    let hostcalls = report.hostcall_stats();
     println!(
         "hostcall_execution: attempted_blocks={} executed_blocks={} fallback_blocks={} errored_blocks={} sites={} stencils={}",
         hostcalls.attempted_blocks,
@@ -441,6 +591,41 @@ fn print_snark_execution_stats(report: &WeavyParseReport) {
         hostcalls.executed_hostcall_sites,
         hostcalls.executed_hostcall_stencils
     );
+}
+
+fn print_snark_descriptor_execution_stats(summaries: Vec<WeavySnarkDescriptorExecutionSummary>) {
+    if let Some(summary) = summaries.first() {
+        println!(
+            "snark_dominant_descriptor_execution: {}.{} domain={:?} family={:?} execution={:?} count={}",
+            summary.descriptor.dialect,
+            summary.descriptor.name,
+            summary.domain,
+            summary.family,
+            summary.execution,
+            summary.count
+        );
+    } else {
+        println!("snark_dominant_descriptor_execution: none");
+    }
+    if summaries.is_empty() {
+        println!("snark_descriptor_execution: none");
+        return;
+    }
+    let descriptors = summaries
+        .iter()
+        .map(|summary| {
+            format!(
+                "{}.{}:{:?}/{:?}={}",
+                summary.descriptor.dialect,
+                summary.descriptor.name,
+                summary.family,
+                summary.execution,
+                summary.count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    println!("snark_descriptor_execution: {descriptors}");
 }
 
 #[derive(Facet)]
@@ -823,7 +1008,10 @@ fn main() {
         let input = fs::read_to_string(args.get(3).expect("input file")).expect("read input");
         let iters: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(30);
         let p = prepare(grammar_path);
-        let tree = match parse_prepared_weavy_resolved_tree(&p.plan, &p.parser, &p.table, &input) {
+        let tree = match p
+            .workspace
+            .parse_resolved_tree(&p.plan, &p.parser, &p.table, &input)
+        {
             Ok(tree) => tree,
             Err(error) => {
                 eprintln!("resolved parse failed: {error:?}");
@@ -847,6 +1035,125 @@ fn main() {
             tree.kind(),
             tree.children().len()
         );
+        return;
+    }
+
+    if args.get(1).map(|s| s == "resolved-cst").unwrap_or(false) {
+        let grammar_path = args
+            .get(2)
+            .expect("usage: resolved-cst <grammar.js|grammar.json> <input> [iters]");
+        let input = fs::read_to_string(args.get(3).expect("input file")).expect("read input");
+        let iters: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(30);
+        let p = prepare(grammar_path);
+        let tree = match p
+            .workspace
+            .parse_resolved_cst(&p.plan, &p.parser, &p.table, &input)
+        {
+            Ok(tree) => tree,
+            Err(error) => {
+                eprintln!("resolved-cst parse failed: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let best_ms = match best_resolved_cst_ms(&p, &input, iters) {
+            Ok(best_ms) => best_ms,
+            Err(error) => {
+                eprintln!("resolved-cst parse failed during timing: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let bytes = input.len();
+        println!(
+            "snark weavy resolved-cst parse: min {best_ms:.2} ms over {iters} iters, {bytes} bytes, {:.0} bytes/ms",
+            bytes as f64 / best_ms
+        );
+        println!(
+            "root_kind={} roots={} items={}",
+            tree.root_kind().unwrap_or("<empty>"),
+            tree.root_count(),
+            tree.len()
+        );
+        return;
+    }
+
+    if args
+        .get(1)
+        .map(|s| s == "resolved-cst-report")
+        .unwrap_or(false)
+    {
+        let grammar_path = args
+            .get(2)
+            .expect("usage: resolved-cst-report <grammar.js|grammar.json> <input> [iters]");
+        let input = fs::read_to_string(args.get(3).expect("input file")).expect("read input");
+        let iters: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(30);
+        let p = prepare(grammar_path);
+        let report = match p
+            .workspace
+            .parse_resolved_cst_report(&p.plan, &p.parser, &p.table, &input)
+        {
+            Ok(report) => report,
+            Err(error) => {
+                eprintln!("resolved-cst report parse failed: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let best_ms = match best_resolved_cst_report_ms(&p, &input, iters) {
+            Ok(best_ms) => best_ms,
+            Err(error) => {
+                eprintln!("resolved-cst report parse failed during timing: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let bytes = input.len();
+        let tree = report.tree();
+        println!(
+            "snark weavy resolved-cst report parse: min {best_ms:.2} ms over {iters} iters, {bytes} bytes, {:.0} bytes/ms",
+            bytes as f64 / best_ms
+        );
+        println!(
+            "root_kind={} roots={} items={}",
+            tree.root_kind().unwrap_or("<empty>"),
+            tree.root_count(),
+            tree.len()
+        );
+        print_resolved_cst_execution_stats(&report);
+        return;
+    }
+
+    if args.get(1).map(|s| s == "report").unwrap_or(false) {
+        let grammar_path = args
+            .get(2)
+            .expect("usage: report <grammar.js|grammar.json> <input> [iters]");
+        let input = fs::read_to_string(args.get(3).expect("input file")).expect("read input");
+        let iters: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(30);
+        let p = prepare(grammar_path);
+        let report = match report_once(&p, &input) {
+            Ok(report) => report,
+            Err(error) => {
+                eprintln!("Weavy report parse failed: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let best_ms = match best_report_ms(&p, &input, iters) {
+            Ok(best_ms) => best_ms,
+            Err(error) => {
+                eprintln!("Weavy report parse failed during timing: {error:?}");
+                std::process::exit(1);
+            }
+        };
+        let bytes = input.len();
+        println!(
+            "snark weavy report parse: min {best_ms:.2} ms over {iters} iters, {bytes} bytes, {:.0} bytes/ms",
+            bytes as f64 / best_ms
+        );
+        println!(
+            "accepted={} failed={} max_live={}",
+            report.accepted_count(),
+            report.failure_count(),
+            report.max_live_versions()
+        );
+        print_snark_execution_stats(&report);
+        print_lexer_execution_stats(&report);
         return;
     }
 
