@@ -1116,12 +1116,16 @@ fn arg_level_from_fields_with_prefix(
         if matches!(value, ValueSchema::Struct { .. }) {
             return Err(SchemaError::new(
                 field_ctx.clone(),
-                "struct fields in args must use #[facet(flatten)]",
+                "struct fields in args must be flattened or transparent scalar newtypes",
             )
-            .with_primary_label("this field is a struct type")
+            .with_primary_label("this field has a struct-shaped Facet schema")
             .with_label(
                 field_ctx.clone(),
-                "add #[facet(flatten)] to include its fields at this level",
+                "try adding #[facet(flatten)] to this CLI field to include its fields here",
+            )
+            .with_label(
+                field_ctx.clone(),
+                "try adding #[facet(transparent)] to the type definition if it is a newtype over a scalar",
             ));
         }
 
