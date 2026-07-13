@@ -69,7 +69,7 @@ smol_str = { workspace = true }
 stacker = { version = "0.1.24", default-features = false }
 
 [build-dependencies]
-copypatch = { workspace = true, features = ["build"], optional = true }
+copypatch = { workspace = true, features = ["build"] }
 
 [[test]]
 name = "format_suite"
@@ -94,7 +94,6 @@ harness = false
 [features]
 default = []
 fast = ["lexical-parse", "dep:itoa", "dep:zmij"]
-jit = ["weavy/jit", "dep:copypatch"]
 lexical-parse = ["dep:lexical-parse-float", "dep:lexical-parse-integer"]
 std = []
 ci = []
