@@ -152,6 +152,35 @@ where
     unsafe { this.put(Cow::<'_, T>::Borrowed(ptr.read())) }
 }
 
+unsafe extern "C" fn cow_borrow_from_pointee<T: ?Sized + ToOwned + 'static>(
+    this: PtrUninit,
+    pointee: PtrConst,
+) -> PtrMut
+where
+    T::Owned: 'static,
+{
+    let pointee = unsafe { pointee.get::<T>() };
+    unsafe { this.put(Cow::<'static, T>::Borrowed(pointee)) }
+}
+
+unsafe extern "C" fn cow_promote_to_owned<T: ?Sized + ToOwned + 'static>(
+    src: PtrConst,
+    dst: PtrMut,
+) -> PtrMut
+where
+    T::Owned: 'static,
+{
+    let cow = unsafe { core::ptr::read(src.as_ptr::<Cow<'static, T>>()) };
+    let owned = cow.into_owned();
+    unsafe {
+        core::ptr::write(
+            dst.as_mut_ptr::<Cow<'static, T>>(),
+            Cow::<'static, T>::Owned(owned),
+        );
+    }
+    dst
+}
+
 unsafe impl<'a, T> Facet<'a> for Cow<'a, T>
 where
     T: 'a + ?Sized + ToOwned + 'static,
@@ -296,6 +325,8 @@ where
                     PointerVTable {
                         borrow_fn: Some(cow_borrow::<T>),
                         new_into_fn: Some(cow_new_into::<T>),
+                        borrow_from_pointee_fn: Some(cow_borrow_from_pointee::<T>),
+                        promote_to_owned_fn: Some(cow_promote_to_owned::<T>),
                         ..PointerVTable::new()
                     }
                 },
@@ -390,5 +421,45 @@ mod tests {
         // Deallocate the memory
         // SAFETY: cow_ptr was allocated by cow_shape and is now dropped (but memory is still valid)
         unsafe { cow_shape.deallocate_mut(cow_ptr).unwrap() };
+    }
+
+    #[test]
+    fn test_cow_vtable_borrow_from_pointee_and_promote_to_owned() {
+        facet_testhelpers::setup();
+
+        let cow_shape = <Cow<'static, str>>::SHAPE;
+        let cow_def = cow_shape
+            .def
+            .into_pointer()
+            .expect("Cow<'static, str> should have a smart pointer definition");
+        let borrow_from_pointee = cow_def
+            .vtable
+            .borrow_from_pointee_fn
+            .expect("Cow<'static, str> should expose borrow_from_pointee_fn");
+        let promote_to_owned = cow_def
+            .vtable
+            .promote_to_owned_fn
+            .expect("Cow<'static, str> should expose promote_to_owned_fn");
+
+        let source: &'static str = "example";
+        let borrowed_uninit = cow_shape.allocate().unwrap();
+        let borrowed =
+            unsafe { borrow_from_pointee(borrowed_uninit, PtrConst::new(source as *const str)) };
+        let borrowed_value = unsafe { borrowed.get::<Cow<'static, str>>() };
+        assert!(matches!(borrowed_value, Cow::Borrowed(value) if *value == "example"));
+
+        let promoted_uninit = cow_shape.allocate().unwrap();
+        let promoted =
+            unsafe { promote_to_owned(borrowed.as_const(), promoted_uninit.assume_init()) };
+        let promoted_value = unsafe { promoted.get::<Cow<'static, str>>() };
+        assert!(matches!(promoted_value, Cow::Owned(value) if value == "example"));
+
+        unsafe {
+            cow_shape.deallocate_mut(borrowed).unwrap();
+            cow_shape
+                .call_drop_in_place(promoted)
+                .expect("promoted Cow should be droppable");
+            cow_shape.deallocate_mut(promoted).unwrap();
+        }
     }
 }

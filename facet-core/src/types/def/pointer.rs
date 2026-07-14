@@ -129,6 +129,12 @@ pub type BorrowFn = unsafe extern "C" fn(this: PtrConst) -> PtrConst;
 /// with [`core::mem::forget`]) but NOT dropped).
 pub type NewIntoFn = unsafe extern "C" fn(this: PtrUninit, ptr: PtrMut) -> PtrMut;
 
+/// Creates a borrowed pointer from a stable, already-initialized pointee.
+pub type BorrowFromPointeeFn = unsafe extern "C" fn(this: PtrUninit, pointee: PtrConst) -> PtrMut;
+
+/// Consumes a pointer and writes its owned representation into `dst`.
+pub type PromoteToOwnedFn = unsafe extern "C" fn(src: PtrConst, dst: PtrMut) -> PtrMut;
+
 /// Type-erased result of locking a mutex-like or reader-writer lock pointer.
 ///
 /// The type parameter `P` determines the capability of the returned pointer:
@@ -290,6 +296,12 @@ pub struct PointerVTable {
     /// See [`NewIntoFn`]
     pub new_into_fn: Option<NewIntoFn>,
 
+    /// See [`BorrowFromPointeeFn`]
+    pub borrow_from_pointee_fn: Option<BorrowFromPointeeFn>,
+
+    /// See [`PromoteToOwnedFn`]
+    pub promote_to_owned_fn: Option<PromoteToOwnedFn>,
+
     /// See [`LockFn`]
     pub lock_fn: Option<LockFn>,
 
@@ -318,6 +330,8 @@ impl PointerVTable {
             downgrade_into_fn: None,
             borrow_fn: None,
             new_into_fn: None,
+            borrow_from_pointee_fn: None,
+            promote_to_owned_fn: None,
             lock_fn: None,
             read_fn: None,
             write_fn: None,
