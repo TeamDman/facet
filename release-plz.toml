@@ -477,6 +477,11 @@ version_group = "vox"
 changelog_path = "vox/CHANGELOG.md"
 
 [[package]]
+name = "vox-iroh"
+version_group = "vox"
+changelog_path = "vox/CHANGELOG.md"
+
+[[package]]
 name = "vox-phon"
 version_group = "vox"
 changelog_path = "vox/CHANGELOG.md"
@@ -622,6 +627,14 @@ changelog_path = "styx/CHANGELOG.md"
 # ============================================================================
 # Dev-only packages - excluded from releases
 # ============================================================================
+
+# crates.io trusted-publishing tokens cannot create a crate. Keep this out of
+# the automated release graph until its first version has been bootstrapped
+# manually; after that it can join the Vox version group.
+[[package]]
+name = "exec-protocol"
+release = false
+publish = false
 
 [[package]]
 name = "facet-showcase"

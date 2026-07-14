@@ -2034,7 +2034,7 @@ pub(crate) fn unbox_call_environment(
 /// and no other mutable or shared reference may concurrently access that arena.
 /// `out_index` and `out_generation` must each be non-null and writable for one
 /// `i64`, and must not alias memory inside `arena`. This function writes
-/// [`ORDERED_CURSOR_POISON`]/`0` to the outputs before it attempts the
+/// the internal poison sentinel and `0` to the outputs before it attempts the
 /// operation, overwriting them only on success.
 pub(crate) unsafe extern "C" fn ordered_begin_probe_abi(
     arena: *mut core::ffi::c_void,
@@ -3303,7 +3303,7 @@ pub enum Op {
     /// On success the two-word opaque region at `cursor` receives the cursor
     /// token (arena index, task generation) and `frame[status]` receives
     /// [`OrderedOpStatus::Ok`]; on failure the cursor index word receives
-    /// [`ORDERED_CURSOR_POISON`], its generation word `0`, and `frame[status]`
+    /// the internal poison sentinel, its generation word `0`, and `frame[status]`
     /// the precise [`OrderedOpStatus`]. The cursor word is internal-only: the
     /// verifier forbids it at entries, results, calls, publication, copy, and
     /// scalar interpretation.
@@ -3631,6 +3631,105 @@ impl Task {
         )
     }
 
+    #[inline]
+    fn run_word_ops(&mut self, code: &[Op], base: usize, mut pc: usize) -> Option<usize> {
+        let mut handled = false;
+        while let Some(op) = code.get(pc) {
+            match op {
+                Op::ConstI64 { dst, value } => {
+                    write_i64_at(&mut self.arena, base + *dst as usize, *value);
+                    pc += 1;
+                }
+                Op::AddI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, va.wrapping_add(vb));
+                    pc += 1;
+                }
+                Op::MulI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, va.wrapping_mul(vb));
+                    pc += 1;
+                }
+                Op::DivI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    let value = if vb == 0 { 0 } else { va.wrapping_div(vb) };
+                    write_i64_at(&mut self.arena, base + *dst as usize, value);
+                    pc += 1;
+                }
+                Op::SubI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, va.wrapping_sub(vb));
+                    pc += 1;
+                }
+                Op::CopyI64 { dst, src } => {
+                    let value = read_i64_at(&self.arena, base + *src as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, value);
+                    pc += 1;
+                }
+                Op::EqI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va == vb));
+                    pc += 1;
+                }
+                Op::NeI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va != vb));
+                    pc += 1;
+                }
+                Op::LtI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va < vb));
+                    pc += 1;
+                }
+                Op::LeI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va <= vb));
+                    pc += 1;
+                }
+                Op::GtI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va > vb));
+                    pc += 1;
+                }
+                Op::GeI64 { dst, a, b } => {
+                    let va = read_i64_at(&self.arena, base + *a as usize);
+                    let vb = read_i64_at(&self.arena, base + *b as usize);
+                    write_i64_at(&mut self.arena, base + *dst as usize, i64::from(va >= vb));
+                    pc += 1;
+                }
+                Op::Jump { target } => {
+                    pc = *target as usize;
+                }
+                Op::JumpIfZero { value, target } => {
+                    let value = read_i64_at(&self.arena, base + *value as usize);
+                    if value == 0 {
+                        pc = *target as usize;
+                    } else {
+                        pc += 1;
+                    }
+                }
+                Op::Trace { id } => {
+                    if self.mode == TraceMode::Innards {
+                        self.trace.push(TaskEvent::Mark(*id));
+                    }
+                    pc += 1;
+                }
+                _ => break,
+            }
+            handled = true;
+        }
+        handled.then_some(pc)
+    }
+
     fn run_hosted_with_value_memories_inner(
         &mut self,
         verified: Option<&VerifiedProgram>,
@@ -3646,10 +3745,14 @@ impl Task {
             let fn_id = frame.fn_id;
             let pc = frame.pc;
             let code = &program.fns[frame.fn_id.0 as usize].code;
-            if frame.pc >= code.len() {
+            if pc >= code.len() {
                 panic!("function {:?} fell off its code without Ret", fn_id);
             }
-            match code[frame.pc].clone() {
+            if let Some(pc) = self.run_word_ops(code, base, pc) {
+                self.frames.last_mut().expect("frame").pc = pc;
+                continue;
+            }
+            match code[pc].clone() {
                 op @ (Op::ProductConstruct { .. }
                 | Op::ProductProject { .. }
                 | Op::CopyValue { .. }
