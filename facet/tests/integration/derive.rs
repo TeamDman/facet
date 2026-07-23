@@ -1021,6 +1021,10 @@ fn opaque_proxy_enum_with_lifetime_compiles() {
         Borrowed(&'a str),
     }
 
+    #[expect(
+        clippy::infallible_try_from,
+        reason = "the opaque proxy contract intentionally exercises TryFrom"
+    )]
     impl<'a> TryFrom<String> for Argument<'a> {
         type Error = std::convert::Infallible;
 

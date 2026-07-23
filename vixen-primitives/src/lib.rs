@@ -12,8 +12,8 @@
 pub mod typed_primitive;
 
 mod decode_primitive;
-mod leaf_overrides;
 mod fetch_primitive;
+mod leaf_overrides;
 mod primitive_value_decode;
 mod tree_glob_primitive;
 mod tree_read_primitive;

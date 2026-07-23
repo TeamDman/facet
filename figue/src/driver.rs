@@ -2000,7 +2000,10 @@ mod tests {
         match result {
             Err(DriverError::Help { text, .. }) => {
                 let text = strip_ansi_escapes::strip_str(&text);
-                assert_eq!(text, "test-app db create\ntest-app db run\ntest-app db rollback");
+                assert_eq!(
+                    text,
+                    "test-app db create\ntest-app db run\ntest-app db rollback"
+                );
             }
             other => panic!("expected DriverError::Help, got {:?}", other),
         }

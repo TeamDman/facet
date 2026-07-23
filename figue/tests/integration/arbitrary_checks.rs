@@ -1,8 +1,8 @@
 use arbitrary::Arbitrary;
 use facet::Facet;
 use figue::{
-    self as args, TestToArgsConsistencyConfig, TestToArgsRoundTrip,
-    assert_to_args_consistency, assert_to_args_roundtrip,
+    self as args, TestToArgsConsistencyConfig, TestToArgsRoundTrip, assert_to_args_consistency,
+    assert_to_args_roundtrip,
 };
 
 #[derive(Facet, Arbitrary, Debug, PartialEq)]

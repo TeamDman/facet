@@ -239,4 +239,3 @@ mod tests {
         assert_eq!(format_suggestion("completely_different", candidates), "");
     }
 }
-

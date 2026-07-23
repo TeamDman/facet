@@ -499,7 +499,8 @@ mod tests {
 
         // fetch is harvested from the registered primitives, one name, and
         // `prelude_primitive` maps it to its `PrimitiveId`.
-        for (name, id) in [("fetch", pinned_fetch_primitive_id())] {
+        {
+            let (name, id) = ("fetch", pinned_fetch_primitive_id());
             let binding = reg.prelude(name).expect("prelude primitive");
             assert!(matches!(binding.target, BindingTarget::Primitive(_)));
             assert_eq!(prelude_primitive(name), Some(id.clone()));

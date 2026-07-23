@@ -5,13 +5,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use tempfile::TempDir;
-use vixen_runtime::ratchet::{RunError, prepare_source};
 use vix::runtime::{
     CanonicalBlobPersistence, FixtureStore, FramedNode, MachineCause, PrimitiveMachineError,
     PrimitiveServices, RuntimeFault, ValueBodyCandidate, ValueId, ValuePersistence,
 };
 use vix::vir::{ExternKind, Type};
 use vix_fetch::HttpBlobOriginAdapter;
+use vixen_runtime::ratchet::{RunError, prepare_source};
 
 const FETCH_AND_EXTRACT: &str = r#"
 #[test]

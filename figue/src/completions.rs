@@ -356,9 +356,7 @@ fn generate_zsh_function(
                     "        {exclusion_group}-{short}'[{escaped_desc}]{value_spec}'\n",
                 ));
             } else {
-                out.push_str(&format!(
-                    "        '-{short}[{escaped_desc}]{value_spec}'\n",
-                ));
+                out.push_str(&format!("        '-{short}[{escaped_desc}]{value_spec}'\n",));
             }
         }
 
@@ -383,10 +381,7 @@ fn generate_zsh_function(
             let desc = cmd.doc.as_deref().unwrap_or("");
             let escaped_desc = escape_zsh_description(desc);
             for name in cmd.all_names() {
-                out.push_str(&format!(
-                    "        '{name}:{escaped_desc}'\n",
-                    name = name
-                ));
+                out.push_str(&format!("        '{name}:{escaped_desc}'\n", name = name));
             }
         }
         out.push_str("    )\n\n");
@@ -510,7 +505,10 @@ fn generate_fish_level(out: &mut String, args: &ArgLevelSchema, program_name: &s
         }
 
         // If flag takes a value, require an argument
-        if matches!(flag.value_mode, NamedValueMode::RequiredValue | NamedValueMode::OptionalValue) {
+        if matches!(
+            flag.value_mode,
+            NamedValueMode::RequiredValue | NamedValueMode::OptionalValue
+        ) {
             out.push_str(" -r");
         }
 
@@ -1022,14 +1020,20 @@ mod tests {
     fn test_aliases_appear_in_bash_completions() {
         let schema = Schema::from_shape(ArgsWithAlias::SHAPE).unwrap();
         let completions = generate_completions_for_schema(&schema, Shell::Bash, "myapp");
-        assert!(completions.contains("--colour"), "expected alias in bash completions: {completions}");
+        assert!(
+            completions.contains("--colour"),
+            "expected alias in bash completions: {completions}"
+        );
     }
 
     #[test]
     fn test_aliases_appear_in_fish_completions() {
         let schema = Schema::from_shape(ArgsWithAlias::SHAPE).unwrap();
         let completions = generate_completions_for_schema(&schema, Shell::Fish, "myapp");
-        assert!(completions.contains(" -l colour"), "expected alias in fish completions: {completions}");
+        assert!(
+            completions.contains(" -l colour"),
+            "expected alias in fish completions: {completions}"
+        );
     }
 
     #[test]
@@ -1057,13 +1061,13 @@ mod tests {
         let schema = Schema::from_shape(ArgsWithAliasedSubcommand::SHAPE).unwrap();
         let bash = generate_completions_for_schema(&schema, Shell::Bash, "myapp");
         let fish = generate_completions_for_schema(&schema, Shell::Fish, "myapp");
-        assert!(bash.contains("profiles"), "expected subcommand alias in bash completions: {bash}");
-        assert!(fish.contains("profiles"), "expected subcommand alias in fish completions: {fish}");
+        assert!(
+            bash.contains("profiles"),
+            "expected subcommand alias in bash completions: {bash}"
+        );
+        assert!(
+            fish.contains("profiles"),
+            "expected subcommand alias in fish completions: {fish}"
+        );
     }
 }
-
-
-
-
-
-

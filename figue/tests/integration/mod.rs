@@ -1,3 +1,5 @@
+#[cfg(feature = "arbitrary")]
+mod arbitrary_checks;
 mod ariadne;
 mod counted;
 mod deser_errors;
@@ -6,6 +8,7 @@ mod err;
 mod help;
 mod json_schema;
 mod layered;
+mod optional_value;
 mod schema_defaults;
 mod sequence;
 mod short_chaining;
@@ -13,8 +16,5 @@ mod simple;
 mod subcommand;
 mod subcommand_errors;
 mod subspans;
-mod unknown_keys;
-mod optional_value;
 mod to_args;
-#[cfg(feature = "arbitrary")]
-mod arbitrary_checks;
+mod unknown_keys;

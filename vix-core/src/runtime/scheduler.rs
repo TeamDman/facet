@@ -7082,8 +7082,7 @@ fn primitive_value_from_frame(
     }
     primitive_value_from_frame_at(
         frame,
-        region,
-        0,
+        FrameLocation { region, offset: 0 },
         ty,
         store,
         resolver,
@@ -7092,16 +7091,22 @@ fn primitive_value_from_frame(
     )
 }
 
-fn primitive_value_from_frame_at(
-    frame: &[u8],
+#[derive(Clone, Copy)]
+struct FrameLocation {
     region: super::FrameRegion,
     offset: usize,
+}
+
+fn primitive_value_from_frame_at(
+    frame: &[u8],
+    location: FrameLocation,
     ty: &Type,
     store: &Store,
     resolver: &TaskValueResolver<'_>,
     abi_schemas: &[(Type, weavy::SchemaRef)],
     export_callback: &mut impl FnMut(i64, i64, &Type, &Type) -> Result<i64, String>,
 ) -> Result<PrimitiveValue, String> {
+    let FrameLocation { region, offset } = location;
     let schema = ty.schema_ref();
     match ty {
         Type::Bool | Type::Int | Type::Check => Ok(PrimitiveValue::bytes(
@@ -7143,8 +7148,10 @@ fn primitive_value_from_frame_at(
             for element in elements {
                 let value = primitive_value_from_frame_at(
                     frame,
-                    region,
-                    cursor,
+                    FrameLocation {
+                        region,
+                        offset: cursor,
+                    },
                     element,
                     store,
                     resolver,
@@ -7165,8 +7172,10 @@ fn primitive_value_from_frame_at(
             for field in &record.fields {
                 let value = primitive_value_from_frame_at(
                     frame,
-                    region,
-                    cursor,
+                    FrameLocation {
+                        region,
+                        offset: cursor,
+                    },
                     &field.ty,
                     store,
                     resolver,
@@ -7195,8 +7204,10 @@ fn primitive_value_from_frame_at(
             for field_ty in field_types {
                 let value = primitive_value_from_frame_at(
                     frame,
-                    region,
-                    cursor,
+                    FrameLocation {
+                        region,
+                        offset: cursor,
+                    },
                     field_ty,
                     store,
                     resolver,

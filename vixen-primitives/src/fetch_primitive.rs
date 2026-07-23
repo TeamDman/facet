@@ -104,7 +104,8 @@ fn admit(
 }
 
 fn blob_identity(bytes: &[u8]) -> ValueId {
-    crate::rt::FramedNode::leaf(Type::Extern(ExternKind::Blob).schema_ref(), bytes.to_vec()).identity()
+    crate::rt::FramedNode::leaf(Type::Extern(ExternKind::Blob).schema_ref(), bytes.to_vec())
+        .identity()
 }
 
 fn verify_upstream(

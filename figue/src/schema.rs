@@ -706,7 +706,9 @@ impl ArgSchema {
 
     /// Iterate over all accepted long-form CLI flag names for this argument.
     pub fn long_flag_names(&self) -> impl Iterator<Item = String> + '_ {
-        self.long_name().into_iter().chain(self.aliases.iter().cloned())
+        self.long_name()
+            .into_iter()
+            .chain(self.aliases.iter().cloned())
     }
 
     /// Check whether this argument accepts the given long-form CLI flag name.
@@ -923,7 +925,6 @@ impl ConfigFieldSchema {
     pub fn default(&self) -> Option<&crate::config_value::ConfigValue> {
         self.default.as_ref()
     }
-
 }
 
 impl ConfigVecSchema {
@@ -1113,4 +1114,3 @@ impl ValueSchema {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests;
-

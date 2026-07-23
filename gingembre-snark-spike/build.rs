@@ -90,10 +90,11 @@ fn build_intop_stencils(manifest: &std::path::Path) {
     );
     if !native {
         // Empty stencils -> the runtime lane falls back to the interpreter.
-        let mut empty = ["PUSH", "ADD", "SUB", "MUL", "FADD", "FSUB", "FMUL", "DONE"]
+        let mut empty = ["PUSH", "ADD", "SUB", "MUL", "FADD", "FSUB", "FMUL"]
             .iter()
             .map(|n| format!("pub const {n}: &[u8] = &[];\npub const {n}_CONT: &[usize] = &[];\n"))
             .collect::<String>();
+        empty.push_str("pub const DONE: &[u8] = &[];\n");
         for g in ["GUARD", "GUARD_F64"] {
             empty.push_str(&format!(
                 "pub const {g}: &[u8] = &[];\npub const {g}_FAST_CONT: &[usize] = &[];\n\

@@ -376,10 +376,7 @@ mod tests {
 
     #[test]
     fn test_visit_recurses_into_enum_fields() {
-        let value = cv_object([(
-            "command",
-            cv_enum("Run", [("dry_run", cv_bool(true))]),
-        )]);
+        let value = cv_object([("command", cv_enum("Run", [("dry_run", cv_bool(true))]))]);
 
         let mut visitor = RecordingVisitor::default();
         let mut path = Path::default();

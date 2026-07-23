@@ -397,11 +397,7 @@ impl Rewriter<'_> {
             .get(&module.value)
             .and_then(|items| items.get(&item.value));
         if declared.is_none()
-            && crate::binding::is_qualified_binding_with(
-                self.surfaces,
-                &module.value,
-                &item.value,
-            )
+            && crate::binding::is_qualified_binding_with(self.surfaces, &module.value, &item.value)
         {
             return Ok(full);
         }

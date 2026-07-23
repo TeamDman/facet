@@ -187,13 +187,13 @@ const RSS_ENFORCEABLE: bool = false;
 pub fn run_source_under_declared_budget(child_exe: &Path, source: &str) -> BudgetOutcome {
     let compilation =
         match vix::compiler::Compiler::with_config(crate::default_config()).compile(source) {
-        Ok(compilation) => compilation,
-        Err(diagnostics) => {
-            return BudgetOutcome::SourceRejected {
-                detail: format!("{diagnostics:?}"),
-            };
-        }
-    };
+            Ok(compilation) => compilation,
+            Err(diagnostics) => {
+                return BudgetOutcome::SourceRejected {
+                    detail: format!("{diagnostics:?}"),
+                };
+            }
+        };
     let [test] = compilation.module.tests.as_slice() else {
         return BudgetOutcome::BudgetTestCardinality {
             count: u64::try_from(compilation.module.tests.len()).unwrap_or(u64::MAX),
@@ -610,9 +610,8 @@ fn resident_bytes(pid: u32) -> Option<u64> {
     // SAFETY: `OpenProcess` is a plain FFI call; it returns a null handle on
     // failure (e.g. the child has exited), which we treat as an unobservable
     // sample. The `0` is the `bInheritHandle` BOOL.
-    let handle = unsafe {
-        OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, 0, pid)
-    };
+    let handle =
+        unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, 0, pid) };
     if handle.is_null() {
         return None;
     }

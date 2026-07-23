@@ -237,6 +237,9 @@ pub fn open_html_help_file(path: impl AsRef<Path>) -> io::Result<()> {
     }
 }
 
+/// Callback that maps an implementation source path to a browsable URL.
+pub type ImplementationUrl = Arc<dyn Fn(&str) -> String + Send + Sync>;
+
 /// Configuration for help text generation.
 #[derive(Clone)]
 pub struct HelpConfig {
@@ -251,7 +254,7 @@ pub struct HelpConfig {
     /// Whether to include implementation source file information in help output.
     pub include_implementation_source_file: bool,
     /// Optional callback to render an implementation URL from a source file path.
-    pub implementation_url: Option<Arc<dyn Fn(&str) -> String + Send + Sync>>,
+    pub implementation_url: Option<ImplementationUrl>,
 }
 
 impl fmt::Debug for HelpConfig {
@@ -1347,8 +1350,8 @@ fn render_html_arg_row(out: &mut String, arg: &ArgSchema) {
 fn render_arg_name_meta(out: &mut String, arg: &ArgSchema) {
     let value_mode = arg.named_value_mode();
     let is_bool_flag = matches!(value_mode, Some(NamedValueMode::BoolFlag));
-    let hide_false_bool_default = is_bool_flag
-        && arg.default().map(config_value_summary).as_deref() == Some("false");
+    let hide_false_bool_default =
+        is_bool_flag && arg.default().map(config_value_summary).as_deref() == Some("false");
     let has_enum_values = arg.cli_value_schema().enum_variants().is_some();
 
     if hide_false_bool_default && !has_enum_values {
@@ -3623,16 +3626,27 @@ mod tests {
     fn test_help_shows_aliases_after_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAlias::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(help.contains("--[no-]color"), "help should show canonical flag: {help}");
-        assert!(help.contains("aliases: colour"), "help should show aliases: {help}");
+        assert!(
+            help.contains("--[no-]color"),
+            "help should show canonical flag: {help}"
+        );
+        assert!(
+            help.contains("aliases: colour"),
+            "help should show aliases: {help}"
+        );
     }
 
     #[test]
     fn test_help_shows_subcommand_aliases_with_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAliasedSubcommand::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(help.contains("profile"), "help should show canonical subcommand: {help}");
-        assert!(help.contains("aliases: profiles"), "help should surface compatibility aliases: {help}");
+        assert!(
+            help.contains("profile"),
+            "help should show canonical subcommand: {help}"
+        );
+        assert!(
+            help.contains("aliases: profiles"),
+            "help should surface compatibility aliases: {help}"
+        );
     }
 }
-

@@ -193,12 +193,15 @@ fn test_string_default_value() {
 fn test_ip_address_default_value() {
     use std::net::{IpAddr, Ipv4Addr};
 
+    fn default_bind_addr() -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+    }
+
     #[derive(Facet, Debug)]
     struct ServerConfig {
         #[facet(args::named)]
         name: String,
-        // IP address from string literal
-        #[facet(args::named, default = "127.0.0.1")]
+        #[facet(args::named, default = default_bind_addr())]
         bind_addr: IpAddr,
     }
 

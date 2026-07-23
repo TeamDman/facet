@@ -485,6 +485,12 @@ fn test_help_shows_subcommand_aliases_with_canonical_name() {
     assert!(err.is_help(), "expected help error, got: {:?}", err);
 
     let help = err.help_text().expect("should have help text");
-    assert!(help.contains("profile"), "help should show canonical subcommand: {help}");
-    assert!(help.contains("aliases: profiles"), "help should surface compatibility aliases: {help}");
+    assert!(
+        help.contains("profile"),
+        "help should show canonical subcommand: {help}"
+    );
+    assert!(
+        help.contains("aliases: profiles"),
+        "help should surface compatibility aliases: {help}"
+    );
 }
