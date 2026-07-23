@@ -19,16 +19,6 @@ The `Justfile` is the source of truth for local/CI commands. Start with:
 - `just docs` / `just doc-tests`
 - `just nostd` (catches accidental `std` usage in core crates)
 
-## Git hooks (Captain)
-
-This repo uses [Captain](https://github.com/bearcove/captain) for pre-commit/pre-push automation.
-
-- Hook scripts live in `hooks/` and invoke `captain` / `captain pre-push`.
-- Configuration lives in `.config/captain/config.styx`.
-- Install hooks for the main repo and all git worktrees with `hooks/install.sh` (also wired via `conductor.json`).
-
-If you bypass hooks with `--no-verify`, CI will still enforce the checks.
-
 ## Testing and debugging
 
 Do yourself a favor and run tests with [cargo-nextest](https://nexte.st). `cargo test` is not the supported default workflow in this repo.

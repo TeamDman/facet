@@ -13,18 +13,7 @@ default: list
 list:
     just --list
 
-precommit: gen
-
-capn:
-    cargo install --git https://github.com/bearcove/capn capn
-
-gen *args: capn
-    capn pre-commit -- {{ args }}
-
-prepush: capn
-    capn pre-push
-
-ci: precommit prepush docs msrv miri
+ci: docs msrv miri
 
 nostd:
     rustup target add thumbv8m.main-none-eabihf

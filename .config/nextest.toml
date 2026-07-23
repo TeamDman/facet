@@ -142,28 +142,8 @@ slow-timeout = { period = "3s", terminate-after = 2 }
 filter = 'test(declared_value_checker_reports_required_errors) | test(declared_type_checker_rejects_duplicate_and_unknown_names)'
 slow-timeout = { period = "120s", terminate-after = 5 }
 
-# The real-workspace dependency-probe shards exercise the production manifest
-# walk against a large workspace. They are bounded but several shards exceed the
-# default 180s cap on local macOS runs.
 [[profile.default.overrides]]
-filter = 'package(vix) & binary(cargo_manifest) & test(real_workspace_dependency_probe_shard_)'
-slow-timeout = { period = "300s", terminate-after = 2 }
-
-[[profile.default.overrides]]
-filter = 'package(vix) & binary(reloc_selection)'
-threads-required = "num-cpus"
-
-# This acceptance test deliberately holds one executor action open while a
-# dependent action completes through a partial output. Running it alongside a
-# saturated workspace can starve its websocket/fake-tool tasks long enough to
-# trip the semantic timeout, so give the probe exclusive ownership of the
-# nextest runner without changing the timeout it is asserting.
-[[profile.default.overrides]]
-filter = 'package(vix-wire) & test(=language_level_pipelining_b_finishes_while_a_still_runs)'
-threads-required = "num-cpus"
-
-[[profile.default.overrides]]
-filter = 'package(vix) & test(=cargo_toml_projection_runs_on_the_machine)'
+filter = 'package(vix-core) & binary(reloc_selection)'
 threads-required = "num-cpus"
 
 # This certificate measures the source-declared execution wall/RSS budget after
@@ -172,7 +152,7 @@ threads-required = "num-cpus"
 # active rather than allowing scheduler contention to consume the program's
 # unchanged five-second wall budget.
 [[profile.default.overrides]]
-filter = 'package(vix) & binary(ratchet_runner) & test(=rung_050_deep_tail_recursion_runs_under_its_declared_budget)'
+filter = 'package(vixen-runtime) & binary(rung050_trace_budget) & test(=rung_050_deep_tail_recursion_runs_under_its_declared_budget)'
 threads-required = "num-cpus"
 
 # The vendored-playground sweeps now shell out to a real JS runtime (node)
@@ -190,7 +170,7 @@ test-group = 'node-subprocess'
 
 # Same coverage-instrumentation slowdown as the fable checker tests above.
 [[profile.default.overrides]]
-filter = 'package(vix) & test(ast_structural_projection_contracts_are_pinned)'
+filter = 'package(vix-core) & test(ast_structural_projection_contracts_are_pinned)'
 slow-timeout = { period = "120s", terminate-after = 5 }
 
 # The accepted-rungs certificate compiles, verifies, and executes the whole
@@ -200,7 +180,17 @@ slow-timeout = { period = "120s", terminate-after = 5 }
 # bounded and always passing; give it the same longer leash as the other heavy
 # vix certificates.
 [[profile.default.overrides]]
-filter = 'package(vix) & test(accepted_rungs_verify_and_execute_through_one_executable)'
+filter = 'package(vix-core) & test(accepted_rungs_verify_and_execute_through_one_executable)'
+slow-timeout = { period = "120s", terminate-after = 5 }
+
+# The rung-110 module-boundary identity oracle compiles three module-set
+# spellings, lowers their shared wire island, and runs two spellings through
+# both lanes: ~12s of CPU in isolation, but under full-workspace parallel
+# load its wall time has been observed past the default 180s cap (156s under
+# two concurrent workspace builds). Bounded and always passing; same leash as
+# the other heavy vix certificates.
+[[profile.default.overrides]]
+filter = 'package(vix-core) & test(=rung_110_recipe_identity_is_importer_independent)'
 slow-timeout = { period = "120s", terminate-after = 5 }
 
 # The cross-lane differential (F1) compiles the accepted canonical corpus
@@ -215,5 +205,5 @@ slow-timeout = { period = "120s", terminate-after = 5 }
 # workspace contention or coverage cannot flake it, on the same shape as the
 # other heavy vix certificates.
 [[profile.default.overrides]]
-filter = 'package(vix) & test(accepted_corpus_agrees_across_native_and_interpreter_lanes)'
+filter = 'package(vix-core) & test(accepted_corpus_agrees_across_native_and_interpreter_lanes)'
 slow-timeout = { period = "300s", terminate-after = 4 }
