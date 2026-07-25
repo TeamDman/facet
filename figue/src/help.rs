@@ -237,9 +237,6 @@ pub fn open_html_help_file(path: impl AsRef<Path>) -> io::Result<()> {
     }
 }
 
-/// Callback that maps an implementation source path to a browsable URL.
-pub type ImplementationUrl = Arc<dyn Fn(&str) -> String + Send + Sync>;
-
 /// Configuration for help text generation.
 #[derive(Clone)]
 pub struct HelpConfig {
@@ -254,8 +251,11 @@ pub struct HelpConfig {
     /// Whether to include implementation source file information in help output.
     pub include_implementation_source_file: bool,
     /// Optional callback to render an implementation URL from a source file path.
-    pub implementation_url: Option<ImplementationUrl>,
+    pub implementation_url: Option<ImplementationUrlFn>,
 }
+
+/// Callback rendering an implementation URL from a source file path.
+pub type ImplementationUrlFn = Arc<dyn Fn(&str) -> String + Send + Sync>;
 
 impl fmt::Debug for HelpConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -445,6 +445,7 @@ pub(crate) fn generate_help_for_subcommand_with_config_formats(
 
     generate_help_for_subcommand_level(current_args, final_sub, &command_path.join(" "), config)
 }
+
 pub(crate) fn generate_help_for_subcommand_with_config_formats_and_shape(
     shape: &'static facet_core::Shape,
     schema: &Schema,
@@ -505,82 +506,6 @@ fn append_implementation_source_for_subcommand_path(
 /// recursively listing all reachable leaf commands.
 /// In [`HelpListMode::Full`], this returns concatenated help output for each
 /// reachable leaf subcommand under the current command path.
-pub(crate) fn generate_help_list_for_subcommand_with_config_formats_and_shape(
-    shape: &'static facet_core::Shape,
-    schema: &Schema,
-    subcommand_path: &[String],
-    config: &HelpConfig,
-    mode: HelpListMode,
-    config_file_extensions: &[&str],
-) -> String {
-    if matches!(mode, HelpListMode::Short) {
-        return generate_help_list_for_subcommand_with_config_formats(
-            schema,
-            subcommand_path,
-            config,
-            mode,
-            config_file_extensions,
-        );
-    }
-
-    let program_name = resolve_program_name(config);
-    let mut current_args = schema.args();
-    let mut resolved_path = Vec::new();
-
-    for name in subcommand_path {
-        let sub = current_args
-            .subcommands()
-            .values()
-            .find(|s| s.effective_name() == name);
-
-        let Some(sub) = sub else {
-            return generate_help_for_subcommand_with_config_formats_and_shape(
-                shape,
-                schema,
-                &[],
-                config,
-                config_file_extensions,
-            );
-        };
-
-        resolved_path.push(sub.effective_name().to_string());
-        current_args = sub.args();
-    }
-
-    if !current_args.has_subcommands() {
-        let command_display = if resolved_path.is_empty() {
-            program_name
-        } else {
-            let cli_chain = resolve_cli_chain(schema, &resolved_path);
-            if cli_chain.is_empty() {
-                program_name
-            } else {
-                format!("{} {}", program_name, cli_chain.join(" "))
-            }
-        };
-        return format!("No subcommands available for {command_display}.");
-    }
-
-    let mut sections = Vec::new();
-    let mut leaf_paths = Vec::new();
-    if current_args.subcommand_optional() {
-        leaf_paths.push(resolved_path.clone());
-    }
-    let mut working_path = resolved_path.clone();
-    collect_leaf_subcommand_paths(&mut leaf_paths, &mut working_path, current_args);
-
-    for child_path in leaf_paths {
-        sections.push(generate_help_for_subcommand_with_config_formats_and_shape(
-            shape,
-            schema,
-            &child_path,
-            config,
-            config_file_extensions,
-        ));
-    }
-    sections.join("\n\n")
-}
-
 pub(crate) fn generate_help_list_for_subcommand_with_config_formats(
     schema: &Schema,
     subcommand_path: &[String],
@@ -732,6 +657,7 @@ fn resolve_cli_chain(schema: &Schema, subcommand_path: &[String]) -> Vec<String>
 
     cli_path
 }
+
 /// Generate help from a built Schema.
 fn generate_help_from_schema(
     schema: &Schema,
@@ -1350,8 +1276,8 @@ fn render_html_arg_row(out: &mut String, arg: &ArgSchema) {
 fn render_arg_name_meta(out: &mut String, arg: &ArgSchema) {
     let value_mode = arg.named_value_mode();
     let is_bool_flag = matches!(value_mode, Some(NamedValueMode::BoolFlag));
-    let hide_false_bool_default =
-        is_bool_flag && arg.default().map(config_value_summary).as_deref() == Some("false");
+    let hide_false_bool_default = is_bool_flag
+        && arg.default().map(config_value_summary).as_deref() == Some("false");
     let has_enum_values = arg.cli_value_schema().enum_variants().is_some();
 
     if hide_false_bool_default && !has_enum_values {
@@ -3626,27 +3552,16 @@ mod tests {
     fn test_help_shows_aliases_after_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAlias::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(
-            help.contains("--[no-]color"),
-            "help should show canonical flag: {help}"
-        );
-        assert!(
-            help.contains("aliases: colour"),
-            "help should show aliases: {help}"
-        );
+        assert!(help.contains("--[no-]color"), "help should show canonical flag: {help}");
+        assert!(help.contains("aliases: colour"), "help should show aliases: {help}");
     }
 
     #[test]
     fn test_help_shows_subcommand_aliases_with_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAliasedSubcommand::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(
-            help.contains("profile"),
-            "help should show canonical subcommand: {help}"
-        );
-        assert!(
-            help.contains("aliases: profiles"),
-            "help should surface compatibility aliases: {help}"
-        );
+        assert!(help.contains("profile"), "help should show canonical subcommand: {help}");
+        assert!(help.contains("aliases: profiles"), "help should surface compatibility aliases: {help}");
     }
 }
+

@@ -16,7 +16,8 @@ use crate::rt::{
 /// The domain logic — glob pattern matching, and enumeration of a fixture-backed
 /// tree's directories or an archive tree's members — lives here in
 /// `vixen-primitives`; `vix-core` supplies only the source value and the
-/// witnessing context (its `Op::TreeGlob` recipe names this primitive's id).
+/// witnessing context (an `Op::InvokeCodataPrimitive` recipe names this
+/// primitive's id).
 pub struct TreeGlobPrimitive {
     descriptor: PrimitiveDescriptor,
 }
@@ -36,7 +37,7 @@ impl Default for TreeGlobPrimitive {
                 memo_policy: PrimitiveMemoPolicy::Observed,
                 protocol_version: 1,
                 capability_schemas: vec![SchemaPattern::exact(
-                    &Type::Extern(ExternKind::Tree).schema_ref(),
+                    &Type::Extern(ExternKind::Host(vix::binding::TREE)).schema_ref(),
                 )],
             },
         }

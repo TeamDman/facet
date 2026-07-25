@@ -28,8 +28,8 @@ use vix::compiler::CompilerConfig;
 use vix::runtime::{
     CodataRegistry, EventSink, PrimitiveDispatcher, PrimitiveRegistry, RawPrimitive, Runtime,
 };
-// DecodePrimitive / PinnedFetchPrimitive / TreeGlobPrimitive / TreeReadPrimitive /
-// TypedAdapter come from the `pub use vixen_primitives::*` above.
+// DecodePrimitive / PinnedFetchPrimitive / RegistryUrlPrimitive / TreeGlobPrimitive /
+// TreeReadPrimitive / TypedAdapter come from the `pub use vixen_primitives::*` above.
 
 /// The built-in registered primitives, as data: this is the *one* place that
 /// lists them. Adding a primitive is one entry here, not a second
@@ -41,6 +41,8 @@ pub fn builtin_primitives<Ctx>() -> Vec<Arc<dyn RawPrimitive<Ctx>>> {
         Arc::new(DecodePrimitive::default()),
         Arc::new(TypedAdapter::new::<Ctx>(PinnedFetchPrimitive)),
         Arc::new(TreeReadPrimitive::default()),
+        Arc::new(RegistryUrlPrimitive::default()),
+        Arc::new(BlobLenPrimitive::default()),
     ]
 }
 
@@ -48,6 +50,12 @@ pub fn builtin_primitives<Ctx>() -> Vec<Arc<dyn RawPrimitive<Ctx>>> {
 /// dispatcher is replaced with to get a runnable system.
 #[must_use]
 pub fn default_primitive_dispatcher<Ctx>() -> PrimitiveDispatcher<Ctx> {
+    // The builtin primitives include `Tree`-typed descriptors (`tree-read`) whose
+    // construction hashes `Host("Tree")`, so the host-extern names must be
+    // reserved before they are built — independent of any compiler config. This
+    // is the schema-registration seam that keeps `Tree`/`TreeEntry` out of
+    // `vix-core`'s hardcoded builtin list (idempotent).
+    vixen_primitives::register_host_types();
     let mut registry = PrimitiveRegistry::default();
     for primitive in builtin_primitives::<Ctx>() {
         registry
@@ -63,6 +71,10 @@ pub fn default_primitive_dispatcher<Ctx>() -> PrimitiveDispatcher<Ctx> {
 /// the embedder context), so this is the single, monomorphic builtin list.
 #[must_use]
 pub fn default_codata_registry() -> CodataRegistry {
+    // `TreeGlobPrimitive`'s descriptor hashes `Host("Tree")`, so reserve the
+    // host-extern names before building it (idempotent) — the same seam as
+    // [`default_primitive_dispatcher`].
+    vixen_primitives::register_host_types();
     let mut registry = CodataRegistry::default();
     registry
         .register(Arc::new(TreeGlobPrimitive::default()))
@@ -82,8 +94,14 @@ pub fn install_builtins<S: EventSink, Ctx>(runtime: &mut Runtime<S, Ctx>) {
 /// empty prelude (the bare language).
 #[must_use]
 pub fn default_config() -> CompilerConfig {
+    // Reserve the domain host-type names with the core schema batch before they
+    // are declared — the schema-registration seam that keeps `Tree`/`TreeEntry`
+    // out of `vix-core`'s hardcoded builtin list (idempotent).
+    vixen_primitives::register_host_types();
     CompilerConfig {
         prelude: vixen_primitives::stdlib::PRELUDE_SOURCES,
+        methods: vixen_primitives::DOMAIN_METHODS,
+        host_types: vixen_primitives::HOST_TYPES,
         ..CompilerConfig::default()
     }
 }

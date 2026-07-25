@@ -740,16 +740,16 @@ pub enum Type {
     Extern(ExternKind),
 }
 
-/// The machine-plane value kinds of the tree/fetch band. `Tree` and
-/// `TreeEntry` projections resolve lazily against the store or an external
-/// fixture root; `Blob` is immutable bytes named by its vix ContentHash
-/// (`machine.identity.blake3`); `Registry`/`PinnedUrl` are the lock-time
-/// fixture-registry surface (`machine.primitive.fetch-is-pinned`).
+/// The machine-plane value kinds of the tree/fetch band. `Host(name)` is an
+/// embedder-declared domain type (e.g. `vixen`'s `Tree`/`TreeEntry`), injected
+/// through [`crate::compiler::CompilerConfig::host_types`] rather than hardcoded
+/// here; its identity is name-keyed, so a `Host("Tree")` value hashes exactly as
+/// the retired `Tree` variant did. `Blob` is immutable bytes named by its vix
+/// ContentHash (`machine.identity.blake3`); `Registry`/`PinnedUrl` are the
+/// lock-time fixture-registry surface (`machine.primitive.fetch-is-pinned`).
 #[derive(facet::Facet, Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ExternKind {
-    Tree,
-    TreeEntry,
     Blob,
     Registry,
     PinnedUrl,
@@ -758,57 +758,70 @@ pub enum ExternKind {
     /// so registered primitive requests can name schemas without a task-local
     /// type handle or an ontology string.
     Schema,
+    /// A declared host type supplied by the embedder (`Tree`, `TreeEntry`, …)
+    /// rather than an axiom of the language core. The core does not enumerate
+    /// these — it carries only the declared name, which is the type's nominal
+    /// identity: `name()` feeds both the value schema (`builtin_schema(name)`)
+    /// and the recipe encoding (`b"extern" + name`) exactly as a hardcoded
+    /// variant did, so a host type hashes identically whether it was a core
+    /// variant or an injected declaration. The set of host types is data the
+    /// embedder injects through [`crate::compiler::CompilerConfig::host_types`];
+    /// the machine engine (the tree ops) still names them, but the language no
+    /// longer hardcodes them as types.
+    Host(&'static str),
 }
 
 impl ExternKind {
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
-            Self::Tree => "Tree",
-            Self::TreeEntry => "TreeEntry",
             Self::Blob => "Blob",
             Self::Registry => "Registry",
             Self::PinnedUrl => "PinnedUrl",
             Self::Schema => "Schema",
+            Self::Host(name) => name,
+        }
+    }
+
+    /// The extern the given nominal name denotes: a core axiom extern for the
+    /// core spellings, a declared host type (`Host(name)`) for any other name.
+    /// This is the inverse of [`name`](Self::name) and the rule behind the
+    /// `#[facet(vix::wire_extern = "…")]` attribute — generic, so an embedder's
+    /// new host type needs nothing from this enum.
+    #[must_use]
+    pub fn named(name: &'static str) -> Self {
+        match name {
+            "Blob" => Self::Blob,
+            "Registry" => Self::Registry,
+            "PinnedUrl" => Self::PinnedUrl,
+            "Schema" => Self::Schema,
+            host => Self::Host(host),
         }
     }
 }
 
-/// An embedder-supplied leaf override: a wire type whose vix `Type` cannot be
-/// read off its `Facet` shape, declared by the embedder rather than hardcoded in
-/// the core walker. Keyed by nominal type identity ([`facet::ConstTypeId`], i.e.
-/// `shape.id`), so distinct wire meanings are distinct Rust newtypes. The target
-/// `Type` is produced by a thunk because `Type` is not a `const` value.
+/// The leaf table for [`Type::from_facet`]: the handful of Rust types whose wire
+/// `Type` cannot be read off their `Facet` shape structurally.
 ///
-/// This is the seam that lets the **domain** wire types (`BlobHandle` →
-/// `Extern(Blob)`, `RegistryHandle` → `Extern(Registry)`, `UpstreamDigest` →
-/// `String`) live outside `vix-core`: the core walker no longer has to *name*
-/// them, it just consults the injected list. See [`Type::from_facet_with`].
-pub struct LeafOverrideDecl {
-    /// Nominal identity of the wire type this override matches, compared against
-    /// `shape.id`. Build with `facet::ConstTypeId::of::<T>()`.
-    pub type_id: facet::ConstTypeId,
-    /// The wire `Type` the matched shape maps to.
-    pub ty: fn() -> Type,
-}
+/// A wire type that maps to a vix extern declares so *on its own shape* with
+/// `#[facet(vix::wire_extern = "…")]` (see `vix-wire`) — the facet-native
+/// seam, honored first, with one generic rule and no per-type table. The
+/// hardcoded fallback below covers only the language's own axiom leaves whose
+/// mapping is not a plain extern name: callbacks (a reflected function type)
+/// and fixed digests (which wire as hex `String`s).
+fn facet_leaf_override(shape: &'static facet::Shape) -> Option<Type> {
+    use crate::runtime::{Callback, Digest, UpstreamDigest};
 
-/// The leaf-override table for [`Type::from_facet`]: the handful of Rust types
-/// whose wire `Type` cannot be read off their `Facet` shape. Keyed by nominal
-/// type identity ([`facet::ConstTypeId`]), so distinct wire meanings are distinct
-/// Rust newtypes rather than one reused type with a hidden discriminator.
-///
-/// Embedder-injected `overrides` are consulted first, so a host crate can map a
-/// wire type the core does not name; the hardcoded fallback below then covers
-/// the language's own axiom leaves (callbacks, digests, schema refs) and — until
-/// the domain wire types complete their move out of core — the domain handles.
-fn facet_leaf_override(
-    shape: &'static facet::Shape,
-    overrides: &[LeafOverrideDecl],
-) -> Option<Type> {
-    use crate::runtime::{BlobHandle, Callback, Digest, RegistryHandle, UpstreamDigest};
-
-    if let Some(decl) = overrides.iter().find(|decl| shape.id == decl.type_id) {
-        return Some((decl.ty)());
+    // The facet-native seam: an annotated shape carries its own extern mapping,
+    // so the mapping travels with the type definition — an embedder introduces
+    // a new host-typed handle without touching `vix-core` (issue 2520).
+    if let Some(name) = shape
+        .attributes
+        .iter()
+        .find(|attr| attr.ns == Some("vix") && attr.key == "wire_extern")
+        .and_then(|attr| attr.get_as::<&'static str>().copied())
+    {
+        return Some(Type::Extern(ExternKind::named(name)));
     }
 
     // A host-retained Vix callback is represented in Rust by a process-local
@@ -820,8 +833,8 @@ fn facet_leaf_override(
             panic!("Callback must expose its request and response type parameters");
         };
         return Some(Type::Function {
-            parameter: Box::new(Type::from_facet_shape(parameter.shape(), overrides)),
-            result: Box::new(Type::from_facet_shape(result.shape(), overrides)),
+            parameter: Box::new(Type::from_facet_shape(parameter.shape())),
+            result: Box::new(Type::from_facet_shape(result.shape())),
         });
     }
 
@@ -832,22 +845,9 @@ fn facet_leaf_override(
     {
         return Some(Type::String);
     }
-    // A published schema reference is an opaque `Extern(Schema)` store value whose
-    // resident bytes are its canonical encoding, not the walked `{id, args}`.
-    if shape.id == <SchemaRef as facet::Facet>::SHAPE.id {
-        return Some(Type::Extern(ExternKind::Schema));
-    }
-    // A registry capability handle: a `ValueId` reused for several extern kinds,
-    // distinguished by its newtype so the wire meaning is unambiguous.
-    if shape.id == <RegistryHandle as facet::Facet>::SHAPE.id {
-        return Some(Type::Extern(ExternKind::Registry));
-    }
-    // A served Blob handle is already an interned `Extern(Blob)` store value; its
-    // typed response `Type` must be bit-for-bit `Extern(Blob)` so the synthesized
-    // `response_schema` stays byte-identical to the hand-written one.
-    if shape.id == <BlobHandle as facet::Facet>::SHAPE.id {
-        return Some(Type::Extern(ExternKind::Blob));
-    }
+    // The extern-mapped wire types (`SchemaRef`, `RegistryHandle`, `BlobHandle`,
+    // and any embedder handle) are not listed here: each carries its own
+    // `#[facet(vix::wire_extern = "…")]` annotation, honored above.
     None
 }
 
@@ -877,33 +877,27 @@ fn facet_scalar(scalar: facet::ScalarType, shape: &'static facet::Shape) -> Type
     }
 }
 
-fn facet_fields(
-    fields: &'static [facet::Field],
-    overrides: &[LeafOverrideDecl],
-) -> Vec<RecordField> {
+fn facet_fields(fields: &'static [facet::Field]) -> Vec<RecordField> {
     fields
         .iter()
         .map(|field| RecordField {
             name: field.effective_name().to_owned(),
-            ty: Type::from_facet_shape(field.shape(), overrides),
+            ty: Type::from_facet_shape(field.shape()),
         })
         .collect()
 }
 
-fn facet_variant_payload(
-    variant: &'static facet::Variant,
-    overrides: &[LeafOverrideDecl],
-) -> VariantPayload {
+fn facet_variant_payload(variant: &'static facet::Variant) -> VariantPayload {
     let fields = variant.data.fields;
     if fields.is_empty() {
         return VariantPayload::Unit;
     }
     match variant.data.kind {
-        facet::StructKind::Struct => VariantPayload::Record(facet_fields(fields, overrides)),
+        facet::StructKind::Struct => VariantPayload::Record(facet_fields(fields)),
         facet::StructKind::Tuple | facet::StructKind::TupleStruct => VariantPayload::Tuple(
             fields
                 .iter()
-                .map(|field| Type::from_facet_shape(field.shape(), overrides))
+                .map(|field| Type::from_facet_shape(field.shape()))
                 .collect(),
         ),
         facet::StructKind::Unit => VariantPayload::Unit,
@@ -960,36 +954,26 @@ impl Type {
     /// values keyed by their distinct newtype identity.
     #[must_use]
     pub fn from_facet<T: facet::Facet<'static>>() -> Self {
-        Self::from_facet_shape(T::SHAPE, &[])
+        Self::from_facet_shape(T::SHAPE)
     }
 
-    /// Like [`Type::from_facet`], but with an embedder-supplied list of
-    /// [`LeafOverrideDecl`]s consulted before the core's own leaf table. This is
-    /// the seam a host crate uses to map its **domain** wire types (which it
-    /// owns, and the language core no longer names) onto their vix `Type` — see
-    /// [`LeafOverrideDecl`]. Passing `&[]` is exactly [`Type::from_facet`].
-    #[must_use]
-    pub fn from_facet_with<T: facet::Facet<'static>>(overrides: &[LeafOverrideDecl]) -> Self {
-        Self::from_facet_shape(T::SHAPE, overrides)
-    }
-
-    fn from_facet_shape(shape: &'static facet::Shape, overrides: &[LeafOverrideDecl]) -> Self {
-        if let Some(ty) = facet_leaf_override(shape, overrides) {
+    fn from_facet_shape(shape: &'static facet::Shape) -> Self {
+        if let Some(ty) = facet_leaf_override(shape) {
             return ty;
         }
         if let Some(pointee) = facet_transparent_pointee(shape) {
-            return Self::from_facet_shape(pointee, overrides);
+            return Self::from_facet_shape(pointee);
         }
         if let Some(scalar) = shape.scalar_type() {
             return facet_scalar(scalar, shape);
         }
         match shape.def {
-            facet::Def::List(list) => Self::array(Self::from_facet_shape(list.t(), overrides)),
-            facet::Def::Slice(slice) => Self::array(Self::from_facet_shape(slice.t(), overrides)),
+            facet::Def::List(list) => Self::array(Self::from_facet_shape(list.t())),
+            facet::Def::Slice(slice) => Self::array(Self::from_facet_shape(slice.t())),
             facet::Def::Option(option) => {
-                Self::option(Self::from_facet_shape(option.t(), overrides))
+                Self::option(Self::from_facet_shape(option.t()))
             }
-            facet::Def::Scalar | facet::Def::Undefined => Self::from_facet_user(shape, overrides),
+            facet::Def::Scalar | facet::Def::Undefined => Self::from_facet_user(shape),
             _ => panic!(
                 "Type::from_facet: unsupported def for `{}`",
                 shape.type_identifier
@@ -997,20 +981,20 @@ impl Type {
         }
     }
 
-    fn from_facet_user(shape: &'static facet::Shape, overrides: &[LeafOverrideDecl]) -> Self {
+    fn from_facet_user(shape: &'static facet::Shape) -> Self {
         match shape.ty {
             facet::Type::User(facet::UserType::Struct(struct_type)) => match struct_type.kind {
                 facet::StructKind::Unit | facet::StructKind::Struct => {
                     Self::Record(RecordType::new(
                         shape.type_identifier,
-                        facet_fields(struct_type.fields, overrides),
+                        facet_fields(struct_type.fields),
                     ))
                 }
                 facet::StructKind::Tuple | facet::StructKind::TupleStruct => Self::Tuple(
                     struct_type
                         .fields
                         .iter()
-                        .map(|field| Self::from_facet_shape(field.shape(), overrides))
+                        .map(|field| Self::from_facet_shape(field.shape()))
                         .collect(),
                 ),
             },
@@ -1021,7 +1005,7 @@ impl Type {
                     .iter()
                     .map(|variant| EnumVariant {
                         name: variant.effective_name().to_owned(),
-                        payload: facet_variant_payload(variant, overrides),
+                        payload: facet_variant_payload(variant),
                     })
                     .collect(),
             )),
@@ -1410,6 +1394,16 @@ pub enum Op {
     InvokePrimitive {
         primitive: crate::runtime::PrimitiveId,
     },
+    /// Invoke one registered *codata* primitive — the codata analogue of
+    /// [`Op::InvokePrimitive`]. Its inputs are the receiver (the stream source,
+    /// e.g. a `Tree`) followed by the method's operands (e.g. the glob pattern);
+    /// its declared type is the stream recipe (`Stream<..>`). The recipe is
+    /// realized when its consumer (`Op::StreamCollect`) drains it, dispatched
+    /// solely by `PrimitiveId` through the codata registry — no bespoke op per
+    /// domain method (issue 2528).
+    InvokeCodataPrimitive {
+        primitive: crate::runtime::PrimitiveId,
+    },
     Tuple,
     Record,
     Project {
@@ -1455,12 +1449,6 @@ pub enum Op {
     ArrayFold,
     /// Partition the final authored position from the remaining prefix.
     ArraySplitLast,
-    /// Test whether every authored array position satisfies one typed predicate.
-    ArrayAll,
-    /// Test whether any authored array position satisfies one typed predicate.
-    ArrayAny,
-    /// Test whether an array holds an element structurally equal to a given value.
-    ArrayContains,
     /// Permute a dense array into ascending structural-semantic order,
     /// preserving every duplicate element.
     ArraySorted,
@@ -1517,12 +1505,6 @@ pub enum Op {
     StreamFlatMap,
     /// Materialize a keyed codata recipe as its canonical Map value.
     StreamCollect,
-    /// Select the structurally-least value whose row satisfies a typed
-    /// predicate, breaking ties by the stable stream key, retaining the stream.
-    StreamFindMin,
-    /// Select the structurally-greatest value whose row satisfies a typed
-    /// predicate, breaking ties by the stable stream key, retaining the stream.
-    StreamFindMax,
     /// Remove exactly the structurally-least row (stable key tie-break) from a
     /// keyed codata recipe, realizing the remaining values as a fresh dense
     /// array in canonical structural key order with the selected row omitted.
@@ -1570,29 +1552,13 @@ pub enum Op {
     /// fixture-tree reference; projections resolve — and record reads — only
     /// where demanded.
     FixtureTree(String),
-    /// Project one segment (String) or a segment path (Path) through a Tree
-    /// or a Dir TreeEntry. Resolves lazily: it reads directory listings along
-    /// the projected path only, never sibling entries or file contents.
-    TreeProject,
-    /// Decode a File TreeEntry's content as UTF-8 text. This is the explicit
-    /// read of the file's bytes; it records the read in the demand's receipt.
-    TreeEntryText,
-    /// Glob over a Tree: a keyed codata recipe (`Stream<Path, Path>`) whose
-    /// collection reads only the directory listings the pattern traverses.
-    TreeGlob,
     /// Open the offline harness fixture registry (the lock-time manifest).
     FixtureRegistry,
-    /// Resolve an artifact name against the registry manifest into a
-    /// `PinnedUrl`: provenance URL plus the REQUIRED vix ContentHash
-    /// (`machine.primitive.fetch-is-pinned`).
-    RegistryUrl,
     /// Extract an archive Blob into a Tree whose identity is the canonical
     /// tree encoding — never the archive bytes' ContentHash.
     ///
     /// r[impl machine.identity.tree-model]
     Untar,
-    /// The byte length of a Blob, read from the store entry.
-    BlobLen,
 }
 
 /// One SSA-like operation. Dependencies are explicit node ids; no Rust
@@ -2266,12 +2232,15 @@ impl Module {
         // Registered primitive invocations are eager value publications. Their
         // Weavy task must suspend and resume through the generic host boundary;
         // a downstream legacy effect island may consume the published value,
-        // but can never absorb and reinterpret the invocation itself.
-        for node in function
-            .nodes
-            .iter()
-            .filter(|node| matches!(node.op, Op::InvokePrimitive { .. }))
-        {
+        // but can never absorb and reinterpret the invocation itself. An
+        // exec-origin tree read (`(exec.tree / ..).text()`) is the exception:
+        // it is a tree-read primitive marked `EFFECT` that the exec engine
+        // realizes progressively, so it is already a progressive value and must
+        // not also be hoisted as a settled shared publication.
+        for node in function.nodes.iter().filter(|node| {
+            matches!(node.op, Op::InvokePrimitive { .. })
+                && !progressive_ids.contains_key(&node.id)
+        }) {
             if !shared.iter().any(|candidate| candidate.id == node.id) {
                 shared.push(node);
             }
@@ -3451,10 +3420,38 @@ fn progressive_exec_tree_text_values(function: &Function) -> Vec<PartitionedProg
         .nodes
         .iter()
         .filter_map(|node| {
-            let Op::TreeEntryText = node.op else {
+            // The exec-origin `.text()` rail lowers to a tree-read primitive
+            // marked `EFFECT` (see `is_effect_root`); a settled fixture/archive
+            // read is the same primitive marked `PURE`. Only the effectful one
+            // can name a still-running `ProgressiveSh` producer.
+            if node.effect.kind != EffectKind::Effect {
+                return None;
+            }
+            let Op::InvokePrimitive { primitive } = &node.op else {
                 return None;
             };
-            let (exec, path) = progressive_exec_tree_path(function, node.inputs[0])?;
+            if *primitive != crate::runtime::tree_read_primitive_id() {
+                return None;
+            }
+            // The compiler marks a tree-read `EFFECT` only when its progressive
+            // gate held (`lower_tree_text_projection`: exec-origin tree, every
+            // segment a literal); this extraction re-derives the same facts at
+            // the node level because it needs the producer and path, not just
+            // the boolean. If it fails, the two gates have drifted — fail here,
+            // loudly, rather than emit the node as both a shared publication
+            // and an effect island.
+            let request = *node
+                .inputs
+                .first()
+                .expect("a primitive invocation carries its request input");
+            let (exec, path) =
+                progressive_exec_tree_path(function, request).unwrap_or_else(|| {
+                    unreachable!(
+                        "an EFFECT-marked tree-read failed progressive extraction: \
+                         `lower_tree_text_projection`'s gate and \
+                         `progressive_exec_tree_path` have drifted"
+                    )
+                });
             Some(PartitionedProgressiveValue {
                 id: ValueIslandId {
                     function: function.id,
@@ -3471,58 +3468,93 @@ fn progressive_exec_tree_text_values(function: &Function) -> Vec<PartitionedProg
         .collect()
 }
 
-fn progressive_exec_tree_path(function: &Function, mut node: NodeId) -> Option<(NodeId, String)> {
-    let mut segments = Vec::new();
-    loop {
-        let current = function.nodes.get(node.0 as usize)?;
-        match &current.op {
-            Op::TreeProject => {
-                let segment = function.nodes.get(current.inputs[1].0 as usize)?;
-                match &segment.op {
-                    Op::String(value) | Op::Path(value) => segments.push(value.clone()),
-                    _ => return None,
-                }
-                node = current.inputs[0];
-            }
-            Op::Project { index: 0 } => {
-                let exec = function.nodes.get(current.inputs[0].0 as usize)?;
-                if !matches!(exec.op, Op::Exec { .. }) {
-                    return None;
-                }
-                let capability = function.nodes.get(exec.inputs[0].0 as usize)?;
-                let Type::Record(capability) = &capability.ty else {
-                    return None;
-                };
-                if capability.name != "ProgressiveSh" {
-                    return None;
-                }
-                segments.reverse();
-                return Some((exec.id, segments.join("/")));
-            }
-            _ => return None,
+/// Match a tree-read request `Record { tree, path }` whose `tree` field projects
+/// a still-running `ProgressiveSh` exec output. Returns the exec producer node
+/// and the constant projection path, or `None` when the tree is not exec-origin
+/// or the path is not a compile-time constant (either falls back to a settled,
+/// interned tree read).
+fn progressive_exec_tree_path(function: &Function, request: NodeId) -> Option<(NodeId, String)> {
+    let request = function.nodes.get(request.0 as usize)?;
+    if !matches!(request.op, Op::Record) {
+        return None;
+    }
+    let tree = *request.inputs.first()?;
+    let path = constant_path(function, *request.inputs.get(1)?)?;
+
+    let tree = function.nodes.get(tree.0 as usize)?;
+    let Op::Project { index: 0 } = tree.op else {
+        return None;
+    };
+    let exec = function.nodes.get(tree.inputs.first()?.0 as usize)?;
+    if !matches!(exec.op, Op::Exec { .. }) {
+        return None;
+    }
+    let capability = function.nodes.get(exec.inputs.first()?.0 as usize)?;
+    let Type::Record(capability) = &capability.ty else {
+        return None;
+    };
+    if capability.name != "ProgressiveSh" {
+        return None;
+    }
+    Some((exec.id, path))
+}
+
+/// Fold a `Path`/`PathJoin` tree of segment literals into its `/`-joined
+/// spelling, or `None` if any segment is a runtime value.
+fn constant_path(function: &Function, node: NodeId) -> Option<String> {
+    let current = function.nodes.get(node.0 as usize)?;
+    match &current.op {
+        Op::Path(value) | Op::String(value) => Some(value.clone()),
+        Op::PathJoin => {
+            let left = constant_path(function, *current.inputs.first()?)?;
+            let right = constant_path(function, *current.inputs.get(1)?)?;
+            Some(format!("{left}/{right}"))
         }
+        _ => None,
     }
 }
 
+/// The exec-origin tree-read nodes the progressive projection realizes, so the
+/// ordinary partition does not also hoist the primitive as a settled effect
+/// island. Only the primitive invocation is an effect root; its pure request
+/// record and path literals are collected too so they never form dead islands.
+/// The `tree` field (the exec output projection) is left alone — it is the
+/// producer boundary, hoisted as the exec island itself.
 fn progressive_projection_effect_nodes(function: &Function, output: NodeId) -> Vec<NodeId> {
     let mut nodes = vec![output];
-    let Some(output) = function.nodes.get(output.0 as usize) else {
+    let Some(invocation) = function.nodes.get(output.0 as usize) else {
         return nodes;
     };
-    let Some(mut node) = output.inputs.first().copied() else {
+    let Some(request_id) = invocation.inputs.first().copied() else {
         return nodes;
     };
-    while let Some(current) = function.nodes.get(node.0 as usize) {
-        match current.op {
-            Op::TreeProject => {
-                nodes.push(current.id);
-                node = current.inputs[0];
-            }
-            Op::Project { index: 0 } => break,
-            _ => break,
-        }
+    let Some(request) = function.nodes.get(request_id.0 as usize) else {
+        return nodes;
+    };
+    if !matches!(request.op, Op::Record) {
+        return nodes;
+    }
+    nodes.push(request_id);
+    if let Some(path_id) = request.inputs.get(1).copied() {
+        collect_constant_path_nodes(function, path_id, &mut nodes);
     }
     nodes
+}
+
+fn collect_constant_path_nodes(function: &Function, node: NodeId, nodes: &mut Vec<NodeId>) {
+    let Some(current) = function.nodes.get(node.0 as usize) else {
+        return;
+    };
+    match &current.op {
+        Op::Path(_) | Op::String(_) => nodes.push(node),
+        Op::PathJoin => {
+            nodes.push(node);
+            for input in current.inputs.clone() {
+                collect_constant_path_nodes(function, input, nodes);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// The parameter positions of `callee` that are demand wires, in declaration
@@ -4125,21 +4157,22 @@ fn structural_fingerprint(
 
 /// An effect root is any machine-plane primitive node that publishes a value:
 /// it is an island boundary regardless of consumer count, because it can never
-/// lower into a Weavy program. A codata effect recipe (`Op::TreeGlob`, type
-/// `Stream<..>`) is not itself a root — the collection realizing it is.
+/// lower into a Weavy program. A codata effect recipe (`Op::InvokeCodataPrimitive`,
+/// type `Stream<..>`) is not itself a root — the collection realizing it is.
 fn is_effect_root(node: &Node) -> bool {
     matches!(
         node.op,
-        Op::Exec { .. }
-            | Op::TreeProject
-            | Op::TreeEntryText
-            | Op::FixtureRegistry
-            | Op::RegistryUrl
-            | Op::Untar
-            | Op::BlobLen
+        Op::Exec { .. } | Op::FixtureRegistry | Op::Untar
     ) || (node.effect.kind == EffectKind::Effect
         && matches!(node.op, Op::StreamCollect)
         && !matches!(node.ty, Type::Stream { .. }))
+        // An exec-origin tree-read (`(exec.tree / ..).text()`) lowers to a
+        // tree-read primitive marked `EFFECT`: it is realized progressively by
+        // the exec engine, never lowered to Weavy, so it is an island boundary.
+        // Settled tree-reads (fixture/archive/completed-exec) stay `PURE` and
+        // are ordinary in-frame primitive calls, not roots.
+        || (node.effect.kind == EffectKind::Effect
+            && matches!(node.op, Op::InvokePrimitive { .. }))
 }
 
 fn is_shared_publication_candidate(node: &Node) -> bool {
@@ -4577,6 +4610,12 @@ fn canonical_node(node: &Node, function_ids: &BTreeMap<FunctionId, u32>) -> Vec<
             frame(&mut op, primitive.name.as_bytes());
             op.extend_from_slice(&primitive.version.to_le_bytes());
         }
+        Op::InvokeCodataPrimitive { primitive } => {
+            op.push(102);
+            frame(&mut op, primitive.namespace.as_bytes());
+            frame(&mut op, primitive.name.as_bytes());
+            op.extend_from_slice(&primitive.version.to_le_bytes());
+        }
         Op::Div => op.push(23),
         Op::IsVariant { variant } => {
             op.push(24);
@@ -4618,9 +4657,6 @@ fn canonical_node(node: &Node, function_ids: &BTreeMap<FunctionId, u32>) -> Vec<
         Op::StreamFilter => op.push(49),
         Op::MapValues => op.push(50),
         Op::ArraySplitLast => op.push(51),
-        Op::ArrayAll => op.push(52),
-        Op::ArrayAny => op.push(53),
-        Op::ArrayContains => op.push(54),
         Op::ArraySorted => op.push(55),
         Op::StreamFilterMap => op.push(56),
         Op::StreamFlatMap => op.push(57),
@@ -4628,8 +4664,6 @@ fn canonical_node(node: &Node, function_ids: &BTreeMap<FunctionId, u32>) -> Vec<
             op.push(58);
             op.extend_from_slice(&site.0.to_le_bytes());
         }
-        Op::StreamFindMin => op.push(59),
-        Op::StreamFindMax => op.push(60),
         Op::StreamSplitMin => op.push(61),
         Op::StringContains => op.push(62),
         Op::StringSplitOnce => op.push(63),
@@ -4666,13 +4700,8 @@ fn canonical_node(node: &Node, function_ids: &BTreeMap<FunctionId, u32>) -> Vec<
             op.push(90);
             frame(&mut op, name.as_bytes());
         }
-        Op::TreeProject => op.push(91),
-        Op::TreeEntryText => op.push(92),
-        Op::TreeGlob => op.push(93),
         Op::FixtureRegistry => op.push(94),
-        Op::RegistryUrl => op.push(95),
         Op::Untar => op.push(97),
-        Op::BlobLen => op.push(98),
     }
     frame(&mut bytes, &op);
     frame(&mut bytes, &(node.inputs.len() as u64).to_le_bytes());
@@ -4874,4 +4903,39 @@ pub(crate) fn canonical_type(ty: &Type) -> Vec<u8> {
 fn frame(out: &mut Vec<u8>, bytes: &[u8]) {
     out.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
     out.extend_from_slice(bytes);
+}
+
+#[cfg(test)]
+mod extern_identity {
+    use super::*;
+
+    // The recipe-identity encoding of the injected host-type externs. Issue 2520
+    // moves `Tree`/`TreeEntry` out of the hardcoded `ExternKind`, and the whole
+    // move rests on `Host("Tree")` hashing byte-for-byte as the retired
+    // `ExternKind::Tree` did: `b"extern" + frame(name)`, name-keyed with no `Host`
+    // discriminant. Get that wrong and every build's recipe hash silently shifts,
+    // so the exact bytes are pinned here rather than left to relative comparison.
+    fn expected_extern(name: &str) -> Vec<u8> {
+        let mut bytes = b"extern".to_vec();
+        frame(&mut bytes, name.as_bytes());
+        bytes
+    }
+
+    #[test]
+    fn host_extern_canonical_type_is_name_keyed_and_stable() {
+        assert_eq!(
+            canonical_type(&Type::Extern(ExternKind::Host(crate::binding::TREE))),
+            expected_extern("Tree"),
+        );
+        assert_eq!(
+            canonical_type(&Type::Extern(ExternKind::Host(crate::binding::TREE_ENTRY))),
+            expected_extern("TreeEntry"),
+        );
+        // Spelled out, so a change to the encoding (e.g. a new `Host` marker byte)
+        // breaks this test rather than silently rehashing every recipe.
+        assert_eq!(
+            canonical_type(&Type::Extern(ExternKind::Host(crate::binding::TREE))),
+            b"extern\x04\x00\x00\x00\x00\x00\x00\x00Tree".to_vec(),
+        );
+    }
 }

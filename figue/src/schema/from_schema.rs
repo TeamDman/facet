@@ -1385,3 +1385,5 @@ const fn is_supported_counted_type(shape: &'static facet_core::Shape) -> bool {
 fn is_config_field(field: &facet_core::Field) -> bool {
     field.has_attr(Some("args"), "config")
 }
+
+
