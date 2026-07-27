@@ -7866,6 +7866,7 @@ dependencies = [
  "facet",
  "facet-value",
  "vox",
+ "vox-phon",
  "vox-schema",
 ]
 
