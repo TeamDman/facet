@@ -5,7 +5,7 @@ package org.facet.vox.generated;
 import org.facet.phon.*;
 import org.facet.vox.VoxResult;
 
-public final class TerminalCancelResponse {
+public final class TerminalSubscribeRasterFramesResponse {
   private static final SchemaClosure SCHEMA = responseSchema();
   private static SchemaClosure responseSchema() {
     try {
@@ -71,5 +71,5 @@ default: throw new PhonException(PhonException.Kind.MALFORMED, "invalid VoxError
 }
     }
   };
-  private TerminalCancelResponse() {}
+  private TerminalSubscribeRasterFramesResponse() {}
 }
