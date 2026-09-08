@@ -145,8 +145,8 @@ where
 ///
 /// # Safety
 ///
-/// The caller must keep `pointee` valid until the resulting Cow is dropped or
-/// promoted to its owned representation.
+/// The caller must keep `pointee` valid for the resulting Cow and every derived
+/// borrow or clone. Promoting one Cow only ends that instance's dependency.
 unsafe extern "C" fn cow_borrow_from_pointee<T: ?Sized + ToOwned + 'static>(
     dst: PtrUninit,
     pointee: PtrConst,
@@ -426,5 +426,38 @@ mod tests {
                 .expect("promoted Cow should be droppable");
             cow_shape.deallocate_mut(cow_ptr).unwrap();
         }
+    }
+
+    #[test]
+    fn test_cow_vtable_promotion_preserves_other_clones_borrows() {
+        let cow_def = <Cow<'static, str>>::SHAPE.def.into_pointer().unwrap();
+        let borrow_from_pointee = cow_def.vtable.borrow_from_pointee_fn.unwrap();
+        let promote_to_owned = cow_def.vtable.promote_to_owned_fn.unwrap();
+        let source = String::from("shared borrowed source");
+        let mut destination = core::mem::MaybeUninit::<Cow<'static, str>>::uninit();
+
+        // The source remains live until both independently borrowed Cows have
+        // been promoted, and no derived references escape this scope.
+        unsafe {
+            borrow_from_pointee(
+                PtrUninit::from_maybe_uninit(&mut destination),
+                PtrConst::new(source.as_str() as *const str),
+            );
+        }
+        let mut original = unsafe { destination.assume_init() };
+        let mut cloned = original.clone();
+
+        unsafe { promote_to_owned(PtrMut::new(&mut original)) };
+        assert!(matches!(&original, Cow::Owned(_)));
+        assert!(matches!(
+            &cloned,
+            Cow::Borrowed(value) if core::ptr::eq(*value, source.as_str()),
+        ));
+        assert_eq!(cloned, "shared borrowed source");
+
+        unsafe { promote_to_owned(PtrMut::new(&mut cloned)) };
+        drop(source);
+        assert!(matches!(&cloned, Cow::Owned(_)));
+        assert_eq!(original, cloned);
     }
 }

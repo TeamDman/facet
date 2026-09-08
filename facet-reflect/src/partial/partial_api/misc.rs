@@ -956,19 +956,18 @@ impl<'facet, const BORROW: bool> Partial<'facet, BORROW> {
                 inner_frame.allocated.shape(),
                 inner_frame.data,
             ) {
-                // Borrowing leaves the inner frame initialized. Promotion makes the
-                // smart pointer independent, so the normal frame cleanup can now drop
-                // and deallocate the temporary source.
-                let mut inner_frame = inner_frame;
-                inner_frame.deinit();
-                inner_frame.dealloc();
-
-                // Mark the SmartPointer as initialized
+                // Promotion has initialized the independent destination. Record that
+                // before dropping the source, whose destructor may run user code.
                 smart_ptr_frame.tracker = Tracker::SmartPointer {
                     building_inner: false,
                     pending_inner: None,
                 };
                 smart_ptr_frame.is_init = true;
+
+                // The source was validated as fully initialized before this call.
+                // Drop the whole value, including an enum's custom destructor, rather
+                // than using partial-initialization cleanup for its individual fields.
+                PendingSmartPointerInner::from_initialized_frame(inner_frame).drop_and_dealloc();
             } else if let Some(pointee) = smart_ptr_def.pointee()
                 && pointee.is_shape(str::SHAPE)
                 && inner_frame.allocated.shape().is_shape(String::SHAPE)

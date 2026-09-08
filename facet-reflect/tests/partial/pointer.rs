@@ -29,10 +29,30 @@ struct OuterNoArc {
 
 static COW_DROP_TRACKER_DROPS: AtomicUsize = AtomicUsize::new(0);
 static COW_DROP_TRACKER_TEST_LOCK: Mutex<()> = Mutex::new(());
+static COW_ENUM_DROPS: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone, Debug, Facet, PartialEq)]
 struct CowDropTracker {
     value: u8,
+}
+
+#[derive(Clone, Debug, Facet, PartialEq)]
+#[repr(u8)]
+enum CowDropTrackerEnum {
+    Unit,
+    Payload {
+        value: CowDropTracker,
+    },
+    Pair {
+        first: CowDropTracker,
+        second: CowDropTracker,
+    },
+}
+
+impl Drop for CowDropTrackerEnum {
+    fn drop(&mut self) {
+        COW_ENUM_DROPS.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 // A deliberately small model of Cloud Terrastodon's Object Explorer. The
@@ -143,6 +163,105 @@ fn cow_partial_sized_borrow_promote_drops_source_once() -> Result<(), IPanic> {
 
     drop(cow);
     assert_eq!(COW_DROP_TRACKER_DROPS.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+fn check_cow_enum_source_and_owned_clone_drop(deferred: bool) -> Result<(), IPanic> {
+    let _lock = COW_DROP_TRACKER_TEST_LOCK.lock().unwrap();
+
+    for variant in ["Unit", "Payload"] {
+        COW_ENUM_DROPS.store(0, Ordering::SeqCst);
+        COW_DROP_TRACKER_DROPS.store(0, Ordering::SeqCst);
+        let mut partial = Partial::alloc::<Cow<'static, CowDropTrackerEnum>>()?;
+        if deferred {
+            partial = partial.begin_deferred()?;
+        }
+        partial = partial.begin_smart_ptr()?.select_variant_named(variant)?;
+        if variant == "Payload" {
+            partial = partial
+                .begin_field("value")?
+                .set(CowDropTracker { value: 46 })?
+                .end()?;
+        }
+        partial = partial.end()?;
+        if deferred {
+            partial = partial.finish_deferred()?;
+        }
+        let cow = partial
+            .build()?
+            .materialize::<Cow<'static, CowDropTrackerEnum>>()?;
+
+        assert!(matches!(&cow, Cow::Owned(_)));
+        assert_eq!(COW_ENUM_DROPS.load(Ordering::SeqCst), 1);
+        let payload_drops = usize::from(variant == "Payload");
+        assert_eq!(COW_DROP_TRACKER_DROPS.load(Ordering::SeqCst), payload_drops);
+
+        drop(cow);
+        assert_eq!(COW_ENUM_DROPS.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            COW_DROP_TRACKER_DROPS.load(Ordering::SeqCst),
+            payload_drops * 2
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn cow_partial_enum_borrow_promote_drops_source_and_owned_clone() -> Result<(), IPanic> {
+    check_cow_enum_source_and_owned_clone_drop(false)
+}
+
+#[test]
+fn cow_partial_enum_borrow_promote_deferred_drops_source_and_owned_clone() -> Result<(), IPanic> {
+    check_cow_enum_source_and_owned_clone_drop(true)
+}
+
+#[test]
+fn cow_partial_enum_cancellation_respects_initialized_fields() -> Result<(), IPanic> {
+    let _lock = COW_DROP_TRACKER_TEST_LOCK.lock().unwrap();
+
+    for deferred in [false, true] {
+        for store_inner in [false, true] {
+            if store_inner && !deferred {
+                continue; // Strict end() promotes instead of storing staging.
+            }
+            for variant in ["Unit", "Payload", "Pair"] {
+                COW_ENUM_DROPS.store(0, Ordering::SeqCst);
+                COW_DROP_TRACKER_DROPS.store(0, Ordering::SeqCst);
+                let mut partial = Partial::alloc::<Cow<'static, CowDropTrackerEnum>>()?;
+                if deferred {
+                    partial = partial.begin_deferred()?;
+                }
+                partial = partial.begin_smart_ptr()?.select_variant_named(variant)?;
+                if variant != "Unit" {
+                    let field = if variant == "Payload" {
+                        "value"
+                    } else {
+                        "first"
+                    };
+                    partial = partial
+                        .begin_field(field)?
+                        .set(CowDropTracker { value: 47 })?
+                        .end()?;
+                }
+                if store_inner {
+                    partial = partial.end()?;
+                }
+                drop(partial);
+
+                // Deferred field frames are canceled separately, leaving the enum
+                // incomplete. Only a unit variant or fully assembled strict payload
+                // can run its whole-value destructor. Pair never has both fields.
+                let enum_drops =
+                    usize::from(variant == "Unit" || (!deferred && variant == "Payload"));
+                assert_eq!(COW_ENUM_DROPS.load(Ordering::SeqCst), enum_drops);
+                assert_eq!(
+                    COW_DROP_TRACKER_DROPS.load(Ordering::SeqCst),
+                    usize::from(variant != "Unit")
+                );
+            }
+        }
+    }
     Ok(())
 }
 

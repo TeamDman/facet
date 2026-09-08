@@ -763,6 +763,23 @@ impl Frame {
         true
     }
 
+    /// Deinitialize a canceled frame after its child frames have been cleaned up
+    /// and their bits cleared in this frame's tracker.
+    ///
+    /// At this point, an enum with all its field bits set is a complete value,
+    /// so its custom destructor must run too. This cannot be inferred at every
+    /// deinit call site: deferred parent bits may precede child validation.
+    fn deinit_for_cancellation(&mut self) {
+        if matches!(
+            &self.tracker,
+            Tracker::Enum { variant, data, .. } if data.all_set(variant.data.fields.len())
+        ) {
+            self.tracker = Tracker::Scalar;
+            self.is_init = true;
+        }
+        self.deinit();
+    }
+
     /// Deinitialize any initialized field: calls `drop_in_place` but does not free any
     /// memory even if the frame owns that memory.
     ///
@@ -2332,7 +2349,7 @@ impl<'facet, const BORROW: bool> Drop for Partial<'facet, BORROW> {
                         }
                         _ => {}
                     }
-                    frame.deinit();
+                    frame.deinit_for_cancellation();
                     frame.dealloc();
                 }
             }
@@ -2368,7 +2385,7 @@ impl<'facet, const BORROW: bool> Drop for Partial<'facet, BORROW> {
                 }
             }
 
-            frame.deinit();
+            frame.deinit_for_cancellation();
             frame.dealloc();
         }
     }
