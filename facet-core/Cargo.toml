@@ -1,14 +1,16 @@
 [package]
-name = "facet-core"
+name = "teamy-facet-core"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Core reflection traits and types for the facet ecosystem - provides the Facet trait, Shape metadata, and type-erased pointers"
+documentation = "https://docs.rs/teamy-facet-core"
+readme = "README.md"
+description = "TeamDman fork: Core reflection traits and types for the facet ecosystem - provides the Facet trait, Shape metadata, and type-erased pointers"
 keywords = ["reflection", "introspection", "metadata", "facet", "shape"]
 categories = ["development-tools", "rust-patterns"]
-homepage = "https://facet.rs"
+homepage.workspace = true
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
@@ -93,6 +95,9 @@ simd = []
 [build-dependencies]
 autocfg = { workspace = true }
 
+[lib]
+name = "facet_core"
+
 [dependencies]
 const-fnv1a-hash = "1"
 bytes = { workspace = true, optional = true }
@@ -125,8 +130,8 @@ taxon = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-facet = { path = "../facet" }
-facet-testhelpers = { path = "../facet-testhelpers" }
+facet = { package = "teamy-facet", path = "../facet" }
+facet-testhelpers = { package = "teamy-facet-testhelpers", path = "../facet-testhelpers" }
 parking_lot = "0.12"
 
 [[test]]

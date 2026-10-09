@@ -1817,3 +1817,31 @@ fn try_from_nonzero_fails_with_custom_u64_type() {
         Err("unsupported source type".to_string())
     );
 }
+
+#[test]
+fn reflected_custom_defaults_match_derived_defaults() {
+    use facet_default as _;
+
+    #[derive(Debug, Facet, PartialEq)]
+    #[facet(derive(Default))]
+    struct Defaults {
+        #[facet(default = 0.25)]
+        amplitude: f32,
+        #[facet(default = "ready")]
+        label: String,
+        #[facet(default = 3)]
+        retries: u8,
+    }
+
+    let reflected = facet_reflect::Partial::alloc::<Defaults>()
+        .unwrap()
+        .build()
+        .unwrap()
+        .materialize::<Defaults>()
+        .unwrap();
+
+    assert_eq!(reflected, Defaults::default());
+    assert_eq!(reflected.amplitude, 0.25);
+    assert_eq!(reflected.label, "ready");
+    assert_eq!(reflected.retries, 3);
+}

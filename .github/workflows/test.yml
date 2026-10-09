@@ -86,8 +86,8 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
           manifest-path: Cargo.toml
-          baseline-rev: origin/main
-          exclude: facet-testattrs, facet-showcase
+          baseline-rev: origin/teamy-main
+          exclude: facet-testattrs, facet-showcase, facet-validate
           verbose: true
   macos:
     name: macOS
@@ -191,7 +191,7 @@ jobs:
       - name: Run nightly feature tests
         env:
           PROPTEST_CASES: 0
-        run: cargo nextest run --package facet-core --features facet-core/simd,facet-core/bytes
+        run: cargo nextest run --package teamy-facet-core --features teamy-facet-core/simd,teamy-facet-core/bytes
 
   msrv:
     runs-on: blacksmith-2vcpu-ubuntu-2404

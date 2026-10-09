@@ -1,8 +1,11 @@
-# facet-pretty
+# teamy-facet-pretty
 
-[![crates.io](https://img.shields.io/crates/v/facet-pretty.svg)](https://crates.io/crates/facet-pretty)
-[![documentation](https://docs.rs/facet-pretty/badge.svg)](https://docs.rs/facet-pretty)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-pretty.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-pretty](https://crates.io/crates/teamy-facet-pretty), independently of the upstream [facet-pretty](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-pretty) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
+
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-pretty.svg)](https://crates.io/crates/teamy-facet-pretty)
+[![documentation](https://docs.rs/teamy-facet-pretty/badge.svg)](https://docs.rs/teamy-facet-pretty)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-pretty.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
 
 `facet-pretty` adds a `.pretty()` method to any type that derives `Facet`,
 producing a colored, human-readable representation. Think `{:#?}` debug output,

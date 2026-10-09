@@ -1,19 +1,24 @@
 [package]
-name = "facet-testhelpers"
+name = "teamy-facet-testhelpers"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/teamy-facet-testhelpers"
+readme = "README.md"
 keywords = ["testing", "helpers", "utilities"]
 categories = ["development-tools::testing", "development-tools"]
-homepage = "https://facet.rs"
-description = "A collection of testing helpers and utilities for facet"
+homepage.workspace = true
+description = "TeamDman fork: A collection of testing helpers and utilities for facet"
 
 [features]
 
+[lib]
+name = "facet_testhelpers"
+
 [dependencies]
-facet-testhelpers-macros = { version = "0.50.0-rc.7", path = "../facet-testhelpers-macros" }
+facet-testhelpers-macros = { package = "teamy-facet-testhelpers-macros", version = "=0.50.0-rc.7", path = "../facet-testhelpers-macros" }
 color-backtrace = { version = "0.7.2", features = ["use-btparse-crate"] }
 termcolor = "1.4"
 tracing = { workspace = true }

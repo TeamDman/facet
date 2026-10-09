@@ -3,7 +3,7 @@ name: Website
 
 on:
   push:
-    branches: [main]
+    branches: [teamy-main]
     paths:
       - '.config/dodeca.styx'          # source set / mounts / link-check config
       - 'docs/**'                       # primary Facet content, templates, sass, and static assets
@@ -13,7 +13,7 @@ on:
       - 'facet-showcase/**'
       - 'facet-*/examples/*showcase*.rs'
   pull_request:
-    branches: [main]
+    branches: [teamy-main]
     paths:
       - '.config/dodeca.styx'
       - 'docs/**'

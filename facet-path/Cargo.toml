@@ -1,14 +1,16 @@
 [package]
-name = "facet-path"
+name = "teamy-facet-path"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Path tracking for navigating Facet type structures"
+documentation = "https://docs.rs/teamy-facet-path"
+readme = "README.md"
+description = "TeamDman fork: Path tracking for navigating Facet type structures"
 keywords = ["facet", "path", "reflection", "error-reporting"]
 categories = ["development-tools", "rust-patterns"]
-homepage = "https://facet.rs"
+homepage.workspace = true
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
@@ -21,12 +23,15 @@ default = ["std"]
 std = ["alloc", "facet-core/std"]
 alloc = ["facet-core/alloc"]
 
+[lib]
+name = "facet_path"
+
 [dependencies]
-facet-core = { path = "../facet-core", version = "0.50.0-rc.7", default-features = false }
+facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.7", default-features = false }
 
 [dev-dependencies]
-facet = { path = "../facet" }
-facet-testhelpers = { path = "../facet-testhelpers" }
+facet = { package = "teamy-facet", path = "../facet" }
+facet-testhelpers = { package = "teamy-facet-testhelpers", path = "../facet-testhelpers" }
 insta = { workspace = true }
 
 [lints]

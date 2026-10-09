@@ -1,4 +1,7 @@
-# facet-macros
+# teamy-facet-macros
+
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-macros](https://crates.io/crates/teamy-facet-macros), independently of the upstream [facet-macros](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-macros) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
 
 <!-- cargo-reedme: start -->
 
@@ -9,16 +12,15 @@
 
     This region was generated from Rust documentation comments by `cargo-reedme` using this command:
 
-        cargo +nightly reedme --package facet-macros
+        cargo +nightly reedme --package teamy-facet-macros
 
     for more info: https://github.com/nik-rev/cargo-reedme
 
 cargo-reedme: info-end -->
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-macros/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-macros.svg)](https://crates.io/crates/facet-macros)
-[![documentation](https://docs.rs/facet-macros/badge.svg)](https://docs.rs/facet-macros)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-macros.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-macros.svg)](https://crates.io/crates/teamy-facet-macros)
+[![documentation](https://docs.rs/teamy-facet-macros/badge.svg)](https://docs.rs/teamy-facet-macros)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-macros.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 Implements the `Facet` derive macro for facet. Uses [unsynn](https://crates.io/crates/unsynn) to provide fast compilation times.

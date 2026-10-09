@@ -1,3 +1,9 @@
+//! TeamDman-maintained fork of [facet-error](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-error), published as
+//! [teamy-facet-error](https://crates.io/crates/teamy-facet-error).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 //! # facet-error
 //!
 //! A `thiserror` replacement powered by facet reflection.

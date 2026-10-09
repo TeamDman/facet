@@ -19,9 +19,9 @@ nostd:
     rustup target add thumbv8m.main-none-eabihf
 
     # Run no_std + alloc checks (alloc is required for facet-core)
-    cargo check --no-default-features --features alloc -p facet-core --target-dir target/nostd --target thumbv8m.main-none-eabihf
-    cargo check --no-default-features --features alloc -p facet --target-dir target/nostd --target thumbv8m.main-none-eabihf
-    cargo check --no-default-features --features alloc -p facet-reflect --target-dir target/nostd --target thumbv8m.main-none-eabihf
+    cargo check --no-default-features --features alloc -p teamy-facet-core --target-dir target/nostd --target thumbv8m.main-none-eabihf
+    cargo check --no-default-features --features alloc -p teamy-facet --target-dir target/nostd --target thumbv8m.main-none-eabihf
+    cargo check --no-default-features --features alloc -p teamy-facet-reflect --target-dir target/nostd --target thumbv8m.main-none-eabihf
 
 nostd-ci:
     #!/usr/bin/env -S bash -euo pipefail
@@ -31,9 +31,9 @@ nostd-ci:
     export CARGO_TARGET_DIR=target/nostd
 
     # Run each check in its own group with the full command as the title
-    cmd_group "cargo check --no-default-features --features alloc -p facet-core --target thumbv8m.main-none-eabihf"
-    cmd_group "cargo check --no-default-features --features alloc -p facet --target thumbv8m.main-none-eabihf"
-    cmd_group "cargo check --no-default-features --features alloc -p facet-reflect --target thumbv8m.main-none-eabihf"
+    cmd_group "cargo check --no-default-features --features alloc -p teamy-facet-core --target thumbv8m.main-none-eabihf"
+    cmd_group "cargo check --no-default-features --features alloc -p teamy-facet --target thumbv8m.main-none-eabihf"
+    cmd_group "cargo check --no-default-features --features alloc -p teamy-facet-reflect --target thumbv8m.main-none-eabihf"
 
 clippy-ci:
     cargo clippy --workspace --all-features --all-targets --keep-going -- -D warnings --allow deprecated
@@ -64,7 +64,7 @@ asan *args:
     CARGO_TARGET_DIR=target/asan RUSTFLAGS="-Z sanitizer=address" \
         cargo +nightly nextest run \
         --target "$(rustc -vV | sed -n 's|host: ||p')" \
-        -p facet-reflect {{ args }}
+        -p teamy-facet-reflect {{ args }}
 
 # macOS-only: run facet-reflect's tests under `leaks --atExit` to catch
 # memory leaks at process exit. Native speed, so it's orders of magnitude
@@ -72,7 +72,7 @@ asan *args:
 # is unreachable at exit.
 leaks *args:
     MallocStackLogging=1 CARGO_TARGET_DIR=target/leaks \
-        cargo nextest run --profile leaks -p facet-reflect {{ args }}
+        cargo nextest run --profile leaks -p teamy-facet-reflect {{ args }}
 
 
 test-ci *args:
@@ -97,24 +97,24 @@ miri *args:
     #!/usr/bin/env -S bash -euo pipefail
     source miri-env.sh
     filter='test(/(arc_vtable|rc_vtable|box_vtable|cow_vtable|test_yoke_|slice_builder|btreeset_vtable|hashset_vtable|list_from_raw_parts|ptr::tagged|partial::array_building::drop_array_partially_initialized|partial::deferred::wip_deferred_drop|partial::fuzz::wip_fuzz_|partial::list_deferred::.*realloc|partial::list_leak::wip_list_leaktest(1|12)$|partial::map::map_partial_initialization_drop|partial::map_deferred_leak|partial::map_leak::wip_map_leaktest(1|8)$|partial::misc::(drop_nested_partially_initialized|drop_partially_initialized_struct|from_raw_drop|from_raw_nested_struct|from_raw_with_vec|gh_354_leak|set_default_drops|set_should_drop)|partial::no_uninit::(array|enum|list|map|smart_pointer|struct)_uninit|partial::option_leak::(fuzz_|wip_option_use_after_free)|partial::pending_smart_pointer_tests::(cow_pending_smart_pointer_drop_uses_actual_staging_shape|external_reinitialization_drains_direct_pending_smart_pointer_staging)|partial::pointer::(cow_|drop_|arc_slice|arc_str|box_str|rc_str)|partial::pointer_complex::arc_slice_(empty|complex)|partial::put_vec_leak|partial::set::set_partial_initialization_drop|partial::struct_leak::wip_struct_testleak(1|14)$|rope_pointer_stability|variance_uaf_regression|opaque_lifetime_laundering)/)'
-    cargo miri nextest run --target-dir target/miri -p facet-reflect -p facet-core --features facet-core/bytes,facet-core/yoke -E "$filter" {{ args }}
+    cargo miri nextest run --target-dir target/miri -p teamy-facet-reflect -p teamy-facet-core --features teamy-facet-core/bytes,teamy-facet-core/yoke -E "$filter" {{ args }}
 
 absolve:
     ./facet-dev/absolve.sh
 
 ship:
     #!/usr/bin/env -S bash -euo pipefail
-    # Refuse to run if not on main branch or not up to date with origin/main
+    # Refuse to run if not on teamy-main branch or not up to date with mine/teamy-main
     branch="$(git rev-parse --abbrev-ref HEAD)"
-    if [[ "$branch" != "main" ]]; then
-    echo -e "\033[1;31m❌ Refusing to run: not on 'main' branch (current: $branch)\033[0m"
+    if [[ "$branch" != "teamy-main" ]]; then
+    echo -e "\033[1;31m❌ Refusing to run: not on 'teamy-main' branch (current: $branch)\033[0m"
     exit 1
     fi
-    git fetch origin main
+    git fetch mine teamy-main
     local_rev="$(git rev-parse HEAD)"
-    remote_rev="$(git rev-parse origin/main)"
+    remote_rev="$(git rev-parse mine/teamy-main)"
     if [[ "$local_rev" != "$remote_rev" ]]; then
-    echo -e "\033[1;31m❌ Refusing to run: local main branch is not up to date with origin/main\033[0m"
+    echo -e "\033[1;31m❌ Refusing to run: local teamy-main branch is not up to date with mine/teamy-main\033[0m"
     echo -e "Local HEAD:  $local_rev"
     echo -e "Origin HEAD: $remote_rev"
     echo -e "Please pull/rebase to update."

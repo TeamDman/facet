@@ -1,3 +1,9 @@
+//! TeamDman-maintained fork of [facet-core](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-core), published as
+//! [teamy-facet-core](https://crates.io/crates/teamy-facet-core).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 // Enable portable_simd when available (detected via autocfg in build.rs)
 #![cfg_attr(has_portable_simd, feature(portable_simd))]
@@ -7,10 +13,9 @@
 // Allow uncommon unicode in the 𝟋 prelude module
 #![allow(uncommon_codepoints)]
 //!
-//! [![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-core/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-//! [![crates.io](https://img.shields.io/crates/v/facet-core.svg)](https://crates.io/crates/facet-core)
-//! [![documentation](https://docs.rs/facet-core/badge.svg)](https://docs.rs/facet-core)
-//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-core.svg)](./LICENSE)
+//! [![crates.io](https://img.shields.io/crates/v/teamy-facet-core.svg)](https://crates.io/crates/teamy-facet-core)
+//! [![documentation](https://docs.rs/teamy-facet-core/badge.svg)](https://docs.rs/teamy-facet-core)
+//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-core.svg)](./LICENSE-MIT)
 //! [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 //!
 //! Defines the `Facet` trait and implements it for a lot (a LOT) of builtin types.

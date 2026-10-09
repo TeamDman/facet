@@ -1,4 +1,7 @@
-# facet-reflect
+# teamy-facet-reflect
+
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-reflect](https://crates.io/crates/teamy-facet-reflect), independently of the upstream [facet-reflect](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-reflect) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
 
 <!-- cargo-reedme: start -->
 
@@ -9,17 +12,16 @@
 
     This region was generated from Rust documentation comments by `cargo-reedme` using this command:
 
-        cargo +nightly reedme --package facet-reflect
+        cargo +nightly reedme --package teamy-facet-reflect
 
     for more info: https://github.com/nik-rev/cargo-reedme
 
 cargo-reedme: info-end -->
 
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-reflect/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-reflect.svg)](https://crates.io/crates/facet-reflect)
-[![documentation](https://docs.rs/facet-reflect/badge.svg)](https://docs.rs/facet-reflect)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-reflect.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-reflect.svg)](https://crates.io/crates/teamy-facet-reflect)
+[![documentation](https://docs.rs/teamy-facet-reflect/badge.svg)](https://docs.rs/teamy-facet-reflect)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-reflect.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 
@@ -27,8 +29,8 @@ Whereas the core `facet` crate provides essential traits like `Facet` itself, an
 data structures like `Type`, `StructType`, `Field`, etc., `facet-reflect` uses that
 information about the shape of types to allow:
 
-  * Read-only access to already-initialized values (via [`Peek`](https://docs.rs/facet-reflect/latest/facet_reflect/peek/value/struct.Peek.html))
-  * Construction of values from scratch (via [`Partial`](https://docs.rs/facet-reflect/latest/facet_reflect/partial/struct.Partial.html))
+  * Read-only access to already-initialized values (via [`Peek`](https://docs.rs/teamy-facet-reflect/latest/facet_reflect/peek/value/struct.Peek.html))
+  * Construction of values from scratch (via [`Partial`](https://docs.rs/teamy-facet-reflect/latest/facet_reflect/partial/struct.Partial.html))
 
 This allows, respectively, serialization and deserialization, without risking breaking
 invariants in types that implement `Facet`.

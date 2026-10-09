@@ -1,12 +1,17 @@
+//! TeamDman-maintained fork of [facet-testhelpers](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-testhelpers), published as
+//! [teamy-facet-testhelpers](https://crates.io/crates/teamy-facet-testhelpers).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 #![warn(missing_docs)]
 #![warn(clippy::std_instead_of_core)]
 #![warn(clippy::std_instead_of_alloc)]
 #![forbid(unsafe_code)]
 //!
-//! [![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-testhelpers/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-//! [![crates.io](https://img.shields.io/crates/v/facet-testhelpers.svg)](https://crates.io/crates/facet-testhelpers)
-//! [![documentation](https://docs.rs/facet-testhelpers/badge.svg)](https://docs.rs/facet-testhelpers)
-//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-testhelpers.svg)](./LICENSE)
+//! [![crates.io](https://img.shields.io/crates/v/teamy-facet-testhelpers.svg)](https://crates.io/crates/teamy-facet-testhelpers)
+//! [![documentation](https://docs.rs/teamy-facet-testhelpers/badge.svg)](https://docs.rs/teamy-facet-testhelpers)
+//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-testhelpers.svg)](./LICENSE-MIT)
 //! [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 //!
 //! Lightweight test helpers: a log facade that always does tracing (with colors),

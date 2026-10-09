@@ -1,3 +1,9 @@
+//! TeamDman-maintained fork of [facet-macro-parse](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-macro-parse), published as
+//! [teamy-facet-macro-parse](https://crates.io/crates/teamy-facet-macro-parse).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 //! # Facet Macro Parse
 //!
 //! Parsed type representations for the facet macro ecosystem.

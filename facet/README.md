@@ -1,4 +1,7 @@
-# facet
+# teamy-facet
+
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet](https://crates.io/crates/teamy-facet), independently of the upstream [facet](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
 
 <!-- cargo-reedme: start -->
 
@@ -9,19 +12,18 @@
 
     This region was generated from Rust documentation comments by `cargo-reedme` using this command:
 
-        cargo +nightly reedme --package facet
+        cargo +nightly reedme --package teamy-facet
 
     for more info: https://github.com/nik-rev/cargo-reedme
 
 cargo-reedme: info-end -->
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet.svg)](https://crates.io/crates/facet)
-[![documentation](https://docs.rs/facet/badge.svg)](https://docs.rs/facet)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/teamy-facet.svg)](https://crates.io/crates/teamy-facet)
+[![documentation](https://docs.rs/teamy-facet/badge.svg)](https://docs.rs/teamy-facet)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
-facet provides reflection for Rust: it gives types a [`SHAPE`](https://docs.rs/facet/latest/facet/trait.Facet.html#associatedconstant.SHAPE) associated
+facet provides reflection for Rust: it gives types a [`SHAPE`](https://docs.rs/teamy-facet/latest/facet/trait.Facet.html#associatedconstant.SHAPE) associated
 const with details on the layout, fields, doc comments, attributes, etc.
 
 It can be used for many things, from (de)serialization to pretty-printing,
@@ -35,11 +37,11 @@ See <https://facet.rs> for details.
 The main `facet` crate re-exports symbols from:
 
 - [facet-core](https://github.com/facet-rs/facet/tree/main/facet-core), which defines the main components:
-  - The [`Facet`](https://docs.rs/facet_core/latest/facet_core/trait.Facet.html) trait and implementations for foreign types (mostly `libstd`)
-  - The [`Shape`](https://docs.rs/facet_core/latest/facet_core/types/shape/struct.Shape.html) struct along with various vtables and the whole [`Def`](https://docs.rs/facet_core/latest/facet_core/types/def/enum.Def.html) tree
-  - Type-erased pointer helpers like [`PtrUninit`](https://docs.rs/facet_core/latest/facet_core/types/ptr/struct.PtrUninit.html), [`PtrConst`](https://docs.rs/facet_core/latest/facet_core/types/ptr/struct.PtrConst.html), and [`Opaque`](https://docs.rs/facet_core/latest/facet_core/types/builtins/struct.Opaque.html)
+  - The [`Facet`](https://docs.rs/teamy-facet-core/latest/facet_core/trait.Facet.html) trait and implementations for foreign types (mostly `libstd`)
+  - The [`Shape`](https://docs.rs/teamy-facet-core/latest/facet_core/types/shape/struct.Shape.html) struct along with various vtables and the whole [`Def`](https://docs.rs/teamy-facet-core/latest/facet_core/types/def/enum.Def.html) tree
+  - Type-erased pointer helpers like [`PtrUninit`](https://docs.rs/teamy-facet-core/latest/facet_core/types/ptr/struct.PtrUninit.html), [`PtrConst`](https://docs.rs/teamy-facet-core/latest/facet_core/types/ptr/struct.PtrConst.html), and [`Opaque`](https://docs.rs/teamy-facet-core/latest/facet_core/types/builtins/struct.Opaque.html)
   - Autoderef specialization trick needed for `facet-macros`
-- [facet-macros](https://github.com/facet-rs/facet/tree/main/facet-macros), which implements the [`Facet`](https://docs.rs/facet_core/latest/facet_core/trait.Facet.html) derive attribute as a fast/light proc macro powered by [unsynn](https://docs.rs/unsynn)
+- [facet-macros](https://github.com/facet-rs/facet/tree/main/facet-macros), which implements the [`Facet`](https://docs.rs/teamy-facet-core/latest/facet_core/trait.Facet.html) derive attribute as a fast/light proc macro powered by [unsynn](https://docs.rs/unsynn)
 
 For struct manipulation and reflection, we have:
 

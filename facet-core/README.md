@@ -1,4 +1,7 @@
-# facet-core
+# teamy-facet-core
+
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-core](https://crates.io/crates/teamy-facet-core), independently of the upstream [facet-core](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-core) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
 
 <!-- cargo-reedme: start -->
 
@@ -9,17 +12,16 @@
 
     This region was generated from Rust documentation comments by `cargo-reedme` using this command:
 
-        cargo +nightly reedme --package facet-core
+        cargo +nightly reedme --package teamy-facet-core
 
     for more info: https://github.com/nik-rev/cargo-reedme
 
 cargo-reedme: info-end -->
 
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-core/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-core.svg)](https://crates.io/crates/facet-core)
-[![documentation](https://docs.rs/facet-core/badge.svg)](https://docs.rs/facet-core)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-core.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-core.svg)](https://crates.io/crates/teamy-facet-core)
+[![documentation](https://docs.rs/teamy-facet-core/badge.svg)](https://docs.rs/teamy-facet-core)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-core.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 Defines the `Facet` trait and implements it for a lot (a LOT) of builtin types.

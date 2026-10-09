@@ -1,6 +1,6 @@
 +++
-title = "facet"
-description = "Reflection for Rust: derive Facet once, then serialize, inspect, diff, configure, and build tooling from one type description."
+title = "Teamy Facet"
+description = "TeamDman-maintained fork of Facet. Reflection for Rust: derive Facet once, then serialize, inspect, diff, configure, and build tooling from one type description."
 insert_anchor_links = "heading"
 +++
 

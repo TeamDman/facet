@@ -1,17 +1,22 @@
 [package]
-name = "facet-macro-types"
+name = "teamy-facet-macro-types"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Unsynn grammar and type definitions for facet macro ecosystem"
-homepage = "https://facet.rs"
+documentation = "https://docs.rs/teamy-facet-macro-types"
+readme = "README.md"
+description = "TeamDman fork: Unsynn grammar and type definitions for facet macro ecosystem"
+homepage.workspace = true
 keywords = ["reflection", "macros", "derive"]
 categories = ["development-tools"]
 
 [package.metadata."docs.rs"]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
+
+[lib]
+name = "facet_macro_types"
 
 [dependencies]
 proc-macro2 = "1"

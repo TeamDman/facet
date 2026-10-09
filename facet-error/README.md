@@ -1,8 +1,11 @@
-# facet-error
+# teamy-facet-error
 
-[![crates.io](https://img.shields.io/crates/v/facet-error.svg)](https://crates.io/crates/facet-error)
-[![documentation](https://docs.rs/facet-error/badge.svg)](https://docs.rs/facet-error)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-error.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-error](https://crates.io/crates/teamy-facet-error), independently of the upstream [facet-error](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-error) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
+
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-error.svg)](https://crates.io/crates/teamy-facet-error)
+[![documentation](https://docs.rs/teamy-facet-error/badge.svg)](https://docs.rs/teamy-facet-error)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-error.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
 
 `facet-error` is a `thiserror`-style plugin for `#[derive(Facet)]` that generates
 `Display` and `Error` implementations from doc comments. You write the error

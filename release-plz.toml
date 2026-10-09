@@ -7,77 +7,77 @@ git_release_enable = true
 # Crates that expose Facet types share one release line. A facet-core API change
 # must not leave consumers with incompatible versions across public boundaries.
 [[package]]
-name = "facet-core"
+name = "teamy-facet-core"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet"
+name = "teamy-facet"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-macros-impl"
+name = "teamy-facet-macros-impl"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-macros"
+name = "teamy-facet-macros"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-macro-types"
+name = "teamy-facet-macro-types"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-macro-parse"
+name = "teamy-facet-macro-parse"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-reflect"
+name = "teamy-facet-reflect"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-error"
+name = "teamy-facet-error"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-default"
+name = "teamy-facet-default"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-solver"
+name = "teamy-facet-solver"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-pretty"
+name = "teamy-facet-pretty"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-path"
+name = "teamy-facet-path"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
 name = "facet-validate"
+release = false
+publish = false
+
+[[package]]
+name = "teamy-facet-testhelpers"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 
 [[package]]
-name = "facet-testhelpers"
-version_group = "facet"
-changelog_path = "CHANGELOG.md"
-
-[[package]]
-name = "facet-testhelpers-macros"
+name = "teamy-facet-testhelpers-macros"
 version_group = "facet"
 changelog_path = "CHANGELOG.md"
 

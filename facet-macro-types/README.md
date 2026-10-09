@@ -1,9 +1,11 @@
-# facet-macro-types
+# teamy-facet-macro-types
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-macro-types/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-macro-types.svg)](https://crates.io/crates/facet-macro-types)
-[![documentation](https://docs.rs/facet-macro-types/badge.svg)](https://docs.rs/facet-macro-types)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-macro-types.svg)](./LICENSE)
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-macro-types](https://crates.io/crates/teamy-facet-macro-types), independently of the upstream [facet-macro-types](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-macro-types) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
+
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-macro-types.svg)](https://crates.io/crates/teamy-facet-macro-types)
+[![documentation](https://docs.rs/teamy-facet-macro-types/badge.svg)](https://docs.rs/teamy-facet-macro-types)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-macro-types.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 Defines the unsynn grammar and type definitions used throughout the facet macro ecosystem.

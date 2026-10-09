@@ -1,11 +1,16 @@
+//! TeamDman-maintained fork of [facet](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet), published as
+//! [teamy-facet](https://crates.io/crates/teamy-facet).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 #![warn(clippy::std_instead_of_core)]
 #![warn(clippy::std_instead_of_alloc)]
-//! [![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-//! [![crates.io](https://img.shields.io/crates/v/facet.svg)](https://crates.io/crates/facet)
-//! [![documentation](https://docs.rs/facet/badge.svg)](https://docs.rs/facet)
-//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet.svg)](./LICENSE)
+//! [![crates.io](https://img.shields.io/crates/v/teamy-facet.svg)](https://crates.io/crates/teamy-facet)
+//! [![documentation](https://docs.rs/teamy-facet/badge.svg)](https://docs.rs/teamy-facet)
+//! [![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet.svg)](./LICENSE-MIT)
 //! [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 //!
 //! facet provides reflection for Rust: it gives types a [`SHAPE`](Facet::SHAPE) associated

@@ -1,11 +1,13 @@
 [package]
-name = "facet-pretty"
+name = "teamy-facet-pretty"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Pretty-printing for Facet types with syntax highlighting and customizable formatting"
+documentation = "https://docs.rs/teamy-facet-pretty"
+readme = "README.md"
+description = "TeamDman fork: Pretty-printing for Facet types with syntax highlighting and customizable formatting"
 keywords = [
     "pretty-print",
     "formatting",
@@ -14,7 +16,7 @@ keywords = [
     "visualization",
 ]
 categories = ["development-tools", "visualization", "command-line-utilities"]
-homepage = "https://facet.rs"
+homepage.workspace = true
 
 [package.metadata."docs.rs"]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
@@ -30,9 +32,12 @@ camino = ["alloc", "facet-core/camino"]
 # build for wasm32, so the dependency is target-gated below.
 detect-terminal-theme = ["dep:terminal-light"]
 
+[lib]
+name = "facet_pretty"
+
 [dependencies]
-facet-core = { path = "../facet-core", version = "0.50.0-rc.7" }
-facet-reflect = { path = "../facet-reflect", version = "0.50.0-rc.7" }
+facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.7" }
+facet-reflect = { package = "teamy-facet-reflect", path = "../facet-reflect", version = "=0.50.0-rc.7" }
 owo-colors = { version = "4", features = ["supports-colors"] }
 
 # `terminal-light` -> `crossterm` does not compile on wasm32. The
@@ -43,9 +48,9 @@ terminal-light = { version = "1.8", optional = true }
 
 [dev-dependencies]
 camino = { workspace = true }
-facet = { path = "../facet", features = ["all-impls"] }
+facet = { package = "teamy-facet", path = "../facet", features = ["all-impls"] }
 facet-showcase = { path = "../facet-showcase" }
-facet-testhelpers = { path = "../facet-testhelpers" }
+facet-testhelpers = { package = "teamy-facet-testhelpers", path = "../facet-testhelpers" }
 insta = { workspace = true }
 
 [lints]

@@ -1,3 +1,9 @@
+//! TeamDman-maintained fork of [facet-testhelpers-macros](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-testhelpers-macros), published as
+//! [teamy-facet-testhelpers-macros](https://crates.io/crates/teamy-facet-testhelpers-macros).
+//! This fork uses its own Facet crate identities; use matching Teamy packages.
+//! Upstream MIT OR Apache-2.0 licensing and attribution are retained.
+//! See the [release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md).
+//!
 // unsynn's Parser API intentionally returns its large Error by value.
 #![allow(clippy::result_large_err)]
 

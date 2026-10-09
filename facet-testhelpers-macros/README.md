@@ -1,9 +1,11 @@
-# facet-testhelpers-macros
+# teamy-facet-testhelpers-macros
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-testhelpers-macros/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-testhelpers-macros.svg)](https://crates.io/crates/facet-testhelpers-macros)
-[![documentation](https://docs.rs/facet-testhelpers-macros/badge.svg)](https://docs.rs/facet-testhelpers-macros)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-testhelpers-macros.svg)](./LICENSE)
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-testhelpers-macros](https://crates.io/crates/teamy-facet-testhelpers-macros), independently of the upstream [facet-testhelpers-macros](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-testhelpers-macros) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
+
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-testhelpers-macros.svg)](https://crates.io/crates/teamy-facet-testhelpers-macros)
+[![documentation](https://docs.rs/teamy-facet-testhelpers-macros/badge.svg)](https://docs.rs/teamy-facet-testhelpers-macros)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-testhelpers-macros.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 Provides a proc macro attribute named `#[test]` which calls `facet_testhelpers::setup()`

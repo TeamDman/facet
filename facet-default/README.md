@@ -1,8 +1,11 @@
-# facet-default
+# teamy-facet-default
 
-[![crates.io](https://img.shields.io/crates/v/facet-default.svg)](https://crates.io/crates/facet-default)
-[![documentation](https://docs.rs/facet-default/badge.svg)](https://docs.rs/facet-default)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-default.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-default](https://crates.io/crates/teamy-facet-default), independently of the upstream [facet-default](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-default) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
+
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-default.svg)](https://crates.io/crates/teamy-facet-default)
+[![documentation](https://docs.rs/teamy-facet-default/badge.svg)](https://docs.rs/teamy-facet-default)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-default.svg)](https://github.com/facet-rs/facet/blob/main/LICENSE-MIT)
 
 `facet-default` derives [`Default`](https://doc.rust-lang.org/std/default/trait.Default.html)
 for your types through facet's plugin system, letting you supply per-field

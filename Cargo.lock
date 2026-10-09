@@ -732,212 +732,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "facet"
-version = "0.50.0-rc.7"
-dependencies = [
- "autocfg",
- "facet-core",
- "facet-default",
- "facet-macros",
- "facet-reflect",
- "facet-showcase",
- "facet-testattrs",
- "facet-testhelpers",
- "num-complex",
- "owo-colors",
- "static_assertions",
- "tempfile",
-]
-
-[[package]]
-name = "facet-core"
-version = "0.50.0-rc.7"
-dependencies = [
- "autocfg",
- "bstr",
- "bytes",
- "bytestring",
- "camino",
- "chrono",
- "compact_str",
- "const-fnv1a-hash",
- "facet",
- "facet-testhelpers",
- "iddqd",
- "impls",
- "indexmap",
- "jiff",
- "lock_api",
- "num-complex",
- "ordered-float",
- "parking_lot",
- "ruint",
- "rust_decimal",
- "semver",
- "smallvec 1.15.2",
- "smartstring",
- "smol_str",
- "stable_deref_trait",
- "taxon",
- "tendril",
- "time",
- "ulid",
- "url",
- "uuid",
- "yoke",
-]
-
-[[package]]
-name = "facet-default"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet",
-]
-
-[[package]]
-name = "facet-error"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet",
-]
-
-[[package]]
-name = "facet-macro-parse"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet-macro-types",
- "proc-macro2",
- "quote",
-]
-
-[[package]]
-name = "facet-macro-types"
-version = "0.50.0-rc.7"
-dependencies = [
- "proc-macro2",
- "quote",
- "unsynn",
-]
-
-[[package]]
-name = "facet-macros"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet-macros-impl",
-]
-
-[[package]]
-name = "facet-macros-impl"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet-macro-parse",
- "facet-macro-types",
- "proc-macro2",
- "quote",
- "strsim",
- "unsynn",
-]
-
-[[package]]
-name = "facet-path"
-version = "0.50.0-rc.7"
-dependencies = [
- "facet",
- "facet-core",
- "facet-testhelpers",
- "insta",
-]
-
-[[package]]
-name = "facet-pretty"
-version = "0.50.0-rc.7"
-dependencies = [
- "camino",
- "facet",
- "facet-core",
- "facet-reflect",
- "facet-showcase",
- "facet-testhelpers",
- "insta",
- "owo-colors",
- "terminal-light",
-]
-
-[[package]]
-name = "facet-reflect"
-version = "0.50.0-rc.7"
-dependencies = [
- "eyre",
- "facet",
- "facet-core",
- "facet-path",
- "facet-testhelpers",
- "hashbrown 0.17.1",
- "insta",
- "proptest",
- "regex",
- "smallvec 2.0.0-alpha.12",
- "tempfile",
- "tracing",
-]
-
-[[package]]
 name = "facet-showcase"
 version = "0.50.0-rc.0"
 dependencies = [
  "arborium",
- "facet",
- "facet-pretty",
  "owo-colors",
-]
-
-[[package]]
-name = "facet-solver"
-version = "0.50.0-rc.7"
-dependencies = [
- "codspeed-divan-compat",
- "facet",
- "facet-core",
- "facet-reflect",
- "facet-testhelpers",
- "json-event-parser",
- "strsim",
- "tracing",
+ "teamy-facet",
+ "teamy-facet-pretty",
 ]
 
 [[package]]
 name = "facet-testattrs"
 version = "0.50.0-rc.0"
 dependencies = [
- "facet",
-]
-
-[[package]]
-name = "facet-testhelpers"
-version = "0.50.0-rc.7"
-dependencies = [
- "color-backtrace",
- "facet-testhelpers-macros",
- "termcolor",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "facet-testhelpers-macros"
-version = "0.50.0-rc.7"
-dependencies = [
- "quote",
- "unsynn",
+ "teamy-facet",
 ]
 
 [[package]]
 name = "facet-validate"
 version = "0.50.0-rc.7"
 dependencies = [
- "facet",
- "facet-core",
  "regex",
+ "teamy-facet",
+ "teamy-facet-core",
 ]
 
 [[package]]
@@ -2204,6 +2021,189 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acccfbd01e7cf4c7ea384b46df6ba3afb934ad88abd247f92998249854de968"
 dependencies = [
  "blake3",
+]
+
+[[package]]
+name = "teamy-facet"
+version = "0.50.0-rc.7"
+dependencies = [
+ "autocfg",
+ "facet-showcase",
+ "facet-testattrs",
+ "num-complex",
+ "owo-colors",
+ "static_assertions",
+ "teamy-facet-core",
+ "teamy-facet-default",
+ "teamy-facet-macros",
+ "teamy-facet-reflect",
+ "teamy-facet-testhelpers",
+ "tempfile",
+]
+
+[[package]]
+name = "teamy-facet-core"
+version = "0.50.0-rc.7"
+dependencies = [
+ "autocfg",
+ "bstr",
+ "bytes",
+ "bytestring",
+ "camino",
+ "chrono",
+ "compact_str",
+ "const-fnv1a-hash",
+ "iddqd",
+ "impls",
+ "indexmap",
+ "jiff",
+ "lock_api",
+ "num-complex",
+ "ordered-float",
+ "parking_lot",
+ "ruint",
+ "rust_decimal",
+ "semver",
+ "smallvec 1.15.2",
+ "smartstring",
+ "smol_str",
+ "stable_deref_trait",
+ "taxon",
+ "teamy-facet",
+ "teamy-facet-testhelpers",
+ "tendril",
+ "time",
+ "ulid",
+ "url",
+ "uuid",
+ "yoke",
+]
+
+[[package]]
+name = "teamy-facet-default"
+version = "0.50.0-rc.7"
+dependencies = [
+ "teamy-facet",
+]
+
+[[package]]
+name = "teamy-facet-error"
+version = "0.50.0-rc.7"
+dependencies = [
+ "teamy-facet",
+]
+
+[[package]]
+name = "teamy-facet-macro-parse"
+version = "0.50.0-rc.7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "teamy-facet-macro-types",
+]
+
+[[package]]
+name = "teamy-facet-macro-types"
+version = "0.50.0-rc.7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unsynn",
+]
+
+[[package]]
+name = "teamy-facet-macros"
+version = "0.50.0-rc.7"
+dependencies = [
+ "teamy-facet-macros-impl",
+]
+
+[[package]]
+name = "teamy-facet-macros-impl"
+version = "0.50.0-rc.7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "teamy-facet-macro-parse",
+ "teamy-facet-macro-types",
+ "unsynn",
+]
+
+[[package]]
+name = "teamy-facet-path"
+version = "0.50.0-rc.7"
+dependencies = [
+ "insta",
+ "teamy-facet",
+ "teamy-facet-core",
+ "teamy-facet-testhelpers",
+]
+
+[[package]]
+name = "teamy-facet-pretty"
+version = "0.50.0-rc.7"
+dependencies = [
+ "camino",
+ "facet-showcase",
+ "insta",
+ "owo-colors",
+ "teamy-facet",
+ "teamy-facet-core",
+ "teamy-facet-reflect",
+ "teamy-facet-testhelpers",
+ "terminal-light",
+]
+
+[[package]]
+name = "teamy-facet-reflect"
+version = "0.50.0-rc.7"
+dependencies = [
+ "eyre",
+ "hashbrown 0.17.1",
+ "insta",
+ "proptest",
+ "regex",
+ "smallvec 2.0.0-alpha.12",
+ "teamy-facet",
+ "teamy-facet-core",
+ "teamy-facet-path",
+ "teamy-facet-testhelpers",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
+name = "teamy-facet-solver"
+version = "0.50.0-rc.7"
+dependencies = [
+ "codspeed-divan-compat",
+ "json-event-parser",
+ "strsim",
+ "teamy-facet",
+ "teamy-facet-core",
+ "teamy-facet-reflect",
+ "teamy-facet-testhelpers",
+ "tracing",
+]
+
+[[package]]
+name = "teamy-facet-testhelpers"
+version = "0.50.0-rc.7"
+dependencies = [
+ "color-backtrace",
+ "teamy-facet-testhelpers-macros",
+ "termcolor",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "teamy-facet-testhelpers-macros"
+version = "0.50.0-rc.7"
+dependencies = [
+ "quote",
+ "unsynn",
 ]
 
 [[package]]

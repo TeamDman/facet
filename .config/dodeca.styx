@@ -7,14 +7,14 @@
 
 source {
     content docs/content
-    repo "https://github.com/facet-rs/facet"
+    repo "https://github.com/TeamDman/facet"
 }
 
 mounts (
-    { name facet-pretty,     path /facet-pretty,     local facet-pretty/docs/content,     repo "https://github.com/facet-rs/facet/tree/main/facet-pretty" }
-    { name facet-default,    path /facet-default,    local facet-default/docs/content,    repo "https://github.com/facet-rs/facet/tree/main/facet-default" }
-    { name facet-error,      path /facet-error,      local facet-error/docs/content,      repo "https://github.com/facet-rs/facet/tree/main/facet-error" }
-    { name facet-validate,   path /facet-validate,   local facet-validate/docs/content,   repo "https://github.com/facet-rs/facet/tree/main/facet-validate" }
+    { name facet-pretty,     path /facet-pretty,     local facet-pretty/docs/content,     repo "https://github.com/TeamDman/facet/tree/teamy-main/facet-pretty" }
+    { name facet-default,    path /facet-default,    local facet-default/docs/content,    repo "https://github.com/TeamDman/facet/tree/teamy-main/facet-default" }
+    { name facet-error,      path /facet-error,      local facet-error/docs/content,      repo "https://github.com/TeamDman/facet/tree/teamy-main/facet-error" }
+    { name facet-validate,   path /facet-validate,   local facet-validate/docs/content,   repo "https://github.com/TeamDman/facet/tree/teamy-main/facet-validate" }
 )
 
 site {
@@ -30,6 +30,5 @@ site {
 
     stable_assets (
         "docs/static/favicon.png favicon.png"
-        "docs/static/CNAME CNAME"
     )
 }

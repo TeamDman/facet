@@ -1,14 +1,16 @@
 [package]
-name = "facet-solver"
+name = "teamy-facet-solver"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Constraint solver for facet - resolves type shapes from field names"
+documentation = "https://docs.rs/teamy-facet-solver"
+readme = "README.md"
+description = "TeamDman fork: Constraint solver for facet - resolves type shapes from field names"
 keywords = ["reflection", "introspection", "facet", "solver", "serde"]
 categories = ["development-tools", "rust-patterns"]
-homepage = "https://facet.rs"
+homepage.workspace = true
 
 [package.metadata."docs.rs"]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
@@ -20,22 +22,25 @@ alloc = ["facet-core/alloc", "facet-reflect/alloc"]
 suggestions = ["strsim", "alloc"]
 tracing = ["facet-reflect/tracing"]
 
+[lib]
+name = "facet_solver"
+
 [dependencies]
-facet-core = { path = "../facet-core", version = "0.50.0-rc.7", default-features = false }
-facet-reflect = { path = "../facet-reflect", version = "0.50.0-rc.7", default-features = false }
+facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.7", default-features = false }
+facet-reflect = { package = "teamy-facet-reflect", path = "../facet-reflect", version = "=0.50.0-rc.7", default-features = false }
 strsim = { workspace = true, optional = true }
 
 [dev-dependencies]
 divan = { workspace = true }
-facet = { path = "../facet", features = ["all-impls", "doc"] }
-facet-testhelpers = { path = "../facet-testhelpers" }
+facet = { package = "teamy-facet", path = "../facet", features = ["all-impls", "doc"] }
+facet-testhelpers = { package = "teamy-facet-testhelpers", path = "../facet-testhelpers" }
 json-event-parser = "0.2"
 
 # Required for tests - makes tracing macros resolve
 tracing = { workspace = true }
 
 # Enables tracing in dependencies during tests
-facet-reflect = { path = "../facet-reflect", features = ["tracing"] }
+facet-reflect = { package = "teamy-facet-reflect", path = "../facet-reflect", features = ["tracing"] }
 
 [[bench]]
 name = "solver"

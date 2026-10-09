@@ -1,9 +1,26 @@
-# facet
+# Teamy Facet
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-core/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
+This is [TeamDman's fork](https://github.com/TeamDman/facet) of
+[upstream Facet](https://github.com/facet-rs/facet), maintained on `teamy-main`.
+Its crates.io packages use the `teamy-facet*` names and are maintained independently
+of official Facet releases. They retain the upstream MIT OR Apache-2.0 licenses,
+copyright notices, contributors, and credits.
+
+The release-preparation source is integration commit
+`345ebb7ba42f7c6644c1d89ef53288fe81204fa5`: upstream commit
+`65bae5c31a7ce401bc44630fb96250ea884cfd3e` plus the reviewed Cow ownership and
+enum-alias contributions. Package versions remain `0.50.0-rc.7`; their Teamy
+package names distinguish them from official crates.
+
+See [TEAMY_RELEASE.md](TEAMY_RELEASE.md) for the package list, installation,
+publication order, validation, and limits. The overview below describes upstream
+Facet capabilities; only the explicitly listed Teamy packages are prepared here.
+
+## Upstream Facet overview
+
 [![crates.io](https://img.shields.io/crates/v/facet-core.svg)](https://crates.io/crates/facet-core)
 [![documentation](https://docs.rs/facet-core/badge.svg)](https://docs.rs/facet-core)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-core.svg)](./LICENSE)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-core.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 `facet` is an ecosystem of Rust crates built on runtime reflection.

@@ -1,3 +1,9 @@
+> These are TeamDman-maintained Teamy Facet packages. Upstream Facet documentation,
+> sponsors, credits, and license notices below are retained as upstream attribution;
+> they do not describe sponsorship or ownership of this fork.
+> Fork source: <https://github.com/TeamDman/facet/tree/teamy-main>.
+> Upstream source: <https://github.com/facet-rs/facet>.
+
 ## Sponsors
 
 Thanks to all individual sponsors:

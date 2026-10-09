@@ -1,16 +1,19 @@
 [package]
-name = "facet-testhelpers-macros"
+name = "teamy-facet-testhelpers-macros"
 version = "0.50.0-rc.7"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/teamy-facet-testhelpers-macros"
+readme = "README.md"
 keywords = ["testing", "helpers", "utilities"]
 categories = ["development-tools::testing", "development-tools"]
-description = "Proc macro for facet-testhelpers"
-homepage = "https://facet.rs"
+description = "TeamDman fork: Proc macro for facet-testhelpers"
+homepage.workspace = true
 
 [lib]
+name = "facet_testhelpers_macros"
 proc-macro = true
 
 [features]

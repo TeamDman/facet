@@ -1,21 +1,26 @@
 [package]
-name = "facet-macro-parse"
+name = "teamy-facet-macro-parse"
 version = "0.50.0-rc.7"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/teamy-facet-macro-parse"
+readme = "README.md"
 rust-version.workspace = true
 
-description = "Parser for facet derive macros - transforms TokenStreams into structured type representations"
+description = "TeamDman fork: Parser for facet derive macros - transforms TokenStreams into structured type representations"
 keywords = ["macro", "parser", "facet", "derive", "proc-macro"]
 categories = ["development-tools", "parser-implementations"]
-homepage = "https://facet.rs"
+homepage.workspace = true
 
 [package.metadata."docs.rs"]
 rustdoc-args = ["--html-in-header", "arborium-header.html"]
 
+[lib]
+name = "facet_macro_parse"
+
 [dependencies]
-facet-macro-types = { version = "0.50.0-rc.7", path = "../facet-macro-types" }
+facet-macro-types = { package = "teamy-facet-macro-types", version = "=0.50.0-rc.7", path = "../facet-macro-types" }
 proc-macro2 = "1"
 quote = { workspace = true }
 

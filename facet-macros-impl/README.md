@@ -1,4 +1,7 @@
-# facet-macros-impl
+# teamy-facet-macros-impl
+
+**TeamDman-maintained fork.** This fork uses the package name [teamy-facet-macros-impl](https://crates.io/crates/teamy-facet-macros-impl), independently of the upstream [facet-macros-impl](https://github.com/facet-rs/facet/tree/65bae5c31a7ce401bc44630fb96250ea884cfd3e/facet-macros-impl) package. It retains upstream MIT OR Apache-2.0 licensing and attribution. Use matching Teamy Facet packages throughout a dependency graph; official Facet traits and shapes are separate Rust types. See the [fork release notes](https://github.com/TeamDman/facet/blob/teamy-main/TEAMY_RELEASE.md) for provenance and installation.
+
 
 <!-- cargo-reedme: start -->
 
@@ -9,17 +12,16 @@
 
     This region was generated from Rust documentation comments by `cargo-reedme` using this command:
 
-        cargo +nightly reedme --package facet-macros-impl
+        cargo +nightly reedme --package teamy-facet-macros-impl
 
     for more info: https://github.com/nik-rev/cargo-reedme
 
 cargo-reedme: info-end -->
 
 
-[![Coverage Status](https://coveralls.io/repos/github/facet-rs/facet-macros-impl/badge.svg?branch=main)](https://coveralls.io/github/facet-rs/facet?branch=main)
-[![crates.io](https://img.shields.io/crates/v/facet-macros-impl.svg)](https://crates.io/crates/facet-macros-impl)
-[![documentation](https://docs.rs/facet-macros-impl/badge.svg)](https://docs.rs/facet-macros-impl)
-[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/facet-macros-impl.svg)](./LICENSE)
+[![crates.io](https://img.shields.io/crates/v/teamy-facet-macros-impl.svg)](https://crates.io/crates/teamy-facet-macros-impl)
+[![documentation](https://docs.rs/teamy-facet-macros-impl/badge.svg)](https://docs.rs/teamy-facet-macros-impl)
+[![MIT/Apache-2.0 licensed](https://img.shields.io/crates/l/teamy-facet-macros-impl.svg)](./LICENSE-MIT)
 [![Discord](https://img.shields.io/discord/1379550208551026748?logo=discord&label=discord)](https://discord.gg/JhD7CwCJ8F)
 
 Implementation of facet derive macros, combining parsing and code generation.
