@@ -362,7 +362,11 @@ mod tests {
             try_convert::<f64, f32>(1e300),
             Err(Some(crate::TryFromOutcome::Failed(_)))
         ));
-        assert!(try_convert::<f64, f32>(f64::INFINITY).unwrap().is_infinite());
+        assert!(
+            try_convert::<f64, f32>(f64::INFINITY)
+                .unwrap()
+                .is_infinite()
+        );
         assert!(try_convert::<f64, f32>(f64::NAN).unwrap().is_nan());
 
         // f32 -> f64 is lossless

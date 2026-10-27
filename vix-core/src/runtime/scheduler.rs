@@ -21,9 +21,7 @@ use crate::vir::{
     ProgressiveProjection, Type, VariantPayload,
 };
 
-use super::fixture::{
-    FixtureEntryKind, FixtureReadError, FixtureStore, TarMember, parse_ustar,
-};
+use super::fixture::{FixtureEntryKind, FixtureReadError, FixtureStore, TarMember, parse_ustar};
 use super::identity::{
     DemandKey, DemandPreimage, Digest, Location, LocationId, RecipeId, ValueId, hash_framed,
 };
@@ -7297,7 +7295,8 @@ fn write_primitive_value(
     // is materialized into the resuming task's molten arena and referenced by a
     // single handle word — the write counterpart to the array read path. Every
     // other aggregate (Record/Tuple/Enum) stays inline in the frame words below.
-    if let (Type::Array(element), PrimitiveValueBody::Sequence { elements, .. }) = (ty, &value.body) {
+    if let (Type::Array(element), PrimitiveValueBody::Sequence { elements, .. }) = (ty, &value.body)
+    {
         let array_schema = abi_schema_for_type(ty, abi_schemas)?;
         let element_bytes = elements
             .iter()
@@ -7333,7 +7332,14 @@ fn write_primitive_value(
             let mut cursor = offset;
             for (element, field) in elements.iter().zip(fields) {
                 write_primitive_field(
-                    task, region, cursor, element, field, store, interned, abi_schemas,
+                    task,
+                    region,
+                    cursor,
+                    element,
+                    field,
+                    store,
+                    interned,
+                    abi_schemas,
                 )?;
                 cursor += primitive_type_words(element)?;
             }
@@ -7373,7 +7379,14 @@ fn write_primitive_value(
             let mut cursor = offset + 1;
             for (field_ty, field) in field_types.into_iter().zip(fields) {
                 write_primitive_field(
-                    task, region, cursor, field_ty, field, store, interned, abi_schemas,
+                    task,
+                    region,
+                    cursor,
+                    field_ty,
+                    field,
+                    store,
+                    interned,
+                    abi_schemas,
                 )?;
                 cursor += primitive_type_words(field_ty)?;
             }
@@ -7410,7 +7423,16 @@ fn write_primitive_field(
         }
         PrimitiveFieldValue::Child(value) => (**value).clone(),
     };
-    write_primitive_value(task, region, offset, ty, &value, store, interned, abi_schemas)
+    write_primitive_value(
+        task,
+        region,
+        offset,
+        ty,
+        &value,
+        store,
+        interned,
+        abi_schemas,
+    )
 }
 
 /// The inline (frame-word) byte encoding of a primitive result `value` of type
@@ -7456,7 +7478,12 @@ fn primitive_inline_bytes(
             let mut out = Vec::new();
             for (element, field) in elements.iter().zip(fields) {
                 out.extend(primitive_field_inline_bytes(
-                    task, element, field, store, interned, abi_schemas,
+                    task,
+                    element,
+                    field,
+                    store,
+                    interned,
+                    abi_schemas,
                 )?);
             }
             Ok(out)
@@ -7491,7 +7518,12 @@ fn primitive_inline_bytes(
             let mut out = i64::from(*tag).to_le_bytes().to_vec();
             for (field_ty, field) in field_types.into_iter().zip(fields) {
                 out.extend(primitive_field_inline_bytes(
-                    task, field_ty, field, store, interned, abi_schemas,
+                    task,
+                    field_ty,
+                    field,
+                    store,
+                    interned,
+                    abi_schemas,
                 )?);
             }
             // Pad to the enum's full inline width so every variant occupies the

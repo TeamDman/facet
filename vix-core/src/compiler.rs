@@ -1215,10 +1215,7 @@ impl<'a> TypeResolver<'a> {
             // fallback). `lower_module` has already rejected any host type whose
             // name is not a reserved builtin schema.
             ast::Type::Path(path)
-                if self
-                    .host_types
-                    .iter()
-                    .any(|decl| path_is(path, decl.name)) =>
+                if self.host_types.iter().any(|decl| path_is(path, decl.name)) =>
             {
                 let name = self
                     .host_types
@@ -1327,8 +1324,20 @@ pub const CAPABILITY_TYPE_NAMES: &[&str] = &["Echo", "Sh", "ProgressiveSh"];
 /// declaration up front rather than letting it sit silently shadowed. Kept in
 /// lockstep with `TypeResolver::resolve_type_with` / `lower_declared_type`.
 const CORE_TYPE_SPELLINGS: &[&str] = &[
-    "Bool", "Int", "String", "Path", "Check", "Ordering", "Blob", "Registry", "PinnedUrl",
-    "Schema", "Option", "Map", "Set", "Stream",
+    "Bool",
+    "Int",
+    "String",
+    "Path",
+    "Check",
+    "Ordering",
+    "Blob",
+    "Registry",
+    "PinnedUrl",
+    "Schema",
+    "Option",
+    "Map",
+    "Set",
+    "Stream",
 ];
 
 /// The single opaque field carrying a capability's executable identity.
@@ -1433,9 +1442,7 @@ fn lower_module(
                 ),
             )));
         }
-        if CORE_TYPE_SPELLINGS.contains(&decl.name)
-            || CAPABILITY_TYPE_NAMES.contains(&decl.name)
-        {
+        if CORE_TYPE_SPELLINGS.contains(&decl.name) || CAPABILITY_TYPE_NAMES.contains(&decl.name) {
             return Err(Diagnostics::one(Diagnostic::unsupported(
                 Span { start: 0, end: 0 },
                 format!(
@@ -3949,8 +3956,13 @@ fn lower_uniform_generic_call(
     let mut lowered_arguments = Vec::with_capacity(arguments.len());
     for (parameter, argument) in where_parameters.iter().zip(arguments) {
         let expected_argument = lower_declared_type(&parameter.ty, &argument_env).ok();
-        let value =
-            lower_value_expected(nodes, bindings, context, argument, expected_argument.as_ref())?;
+        let value = lower_value_expected(
+            nodes,
+            bindings,
+            context,
+            argument,
+            expected_argument.as_ref(),
+        )?;
         infer_type_argument(
             &parameter.ty,
             &value.ty,
@@ -4418,9 +4430,11 @@ fn lower_method_call(
     let receiver = lower_value(nodes, bindings, context, &call.receiver)?;
     // Axiom methods resolve against the builtin registry; the embedder's injected
     // host-type methods (`Tree.glob`, …) resolve against `config.methods`.
-    let Some(entry) = crate::binding::prelude_method(&receiver.ty, &call.name.value).or_else(|| {
-        crate::binding::injected_method(context.config.methods, &receiver.ty, &call.name.value)
-    }) else {
+    let Some(entry) =
+        crate::binding::prelude_method(&receiver.ty, &call.name.value).or_else(|| {
+            crate::binding::injected_method(context.config.methods, &receiver.ty, &call.name.value)
+        })
+    else {
         // Uniform function-call syntax: `recv.method(args)` on a value with no
         // builtin method resolves to a free function `method` whose sole
         // positional parameter is the receiver, with the method's positional
@@ -9189,21 +9203,31 @@ fn lower_generic_call(
             }
         }
         for parameter in &where_parameters {
-            let field = named_fields.get(parameter.name.value.as_str()).ok_or_else(|| {
-                Diagnostics::one(Diagnostic::unsupported(
-                    call.span,
-                    format!("missing `where` argument `{}`", parameter.name.value),
-                ))
-            })?;
+            let field = named_fields
+                .get(parameter.name.value.as_str())
+                .ok_or_else(|| {
+                    Diagnostics::one(Diagnostic::unsupported(
+                        call.span,
+                        format!("missing `where` argument `{}`", parameter.name.value),
+                    ))
+                })?;
             let expected_argument = lower_declared_type(&parameter.ty, &argument_env).ok();
             let value = if let Some(expression) = &field.value {
-                lower_value_expected(nodes, bindings, context, expression, expected_argument.as_ref())?
+                lower_value_expected(
+                    nodes,
+                    bindings,
+                    context,
+                    expression,
+                    expected_argument.as_ref(),
+                )?
             } else {
                 lookup_binding(bindings, &field.name.value, field.name.span)?
             };
             bound.push((parameter.name.value.clone(), value));
         }
-        return inline_stream_call(nodes, context, template, &arguments, bound, expected, call.span);
+        return inline_stream_call(
+            nodes, context, template, &arguments, bound, expected, call.span,
+        );
     }
 
     let (id, signature) =

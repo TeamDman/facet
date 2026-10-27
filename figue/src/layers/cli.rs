@@ -427,7 +427,10 @@ impl<'a> ParseContext<'a> {
             );
         } else if let Some(negated_name) = flag_name.strip_prefix("no-") {
             if let Some((_effective_name, arg_schema)) = level.args().get(negated_name)
-                && matches!(arg_schema.named_value_mode(), Some(NamedValueMode::BoolFlag))
+                && matches!(
+                    arg_schema.named_value_mode(),
+                    Some(NamedValueMode::BoolFlag)
+                )
             {
                 let prov = Provenance::cli(arg, "false".to_string());
                 self.insert_value_path_to(
@@ -469,10 +472,8 @@ impl<'a> ParseContext<'a> {
         } else {
             // Collect all available flag names for suggestion
             let all_flags = self.visible_long_flag_names(level);
-            let suggestion = crate::suggest::suggest_flag(
-                flag_name,
-                all_flags.iter().map(|flag| flag.as_str()),
-            );
+            let suggestion =
+                crate::suggest::suggest_flag(flag_name, all_flags.iter().map(|flag| flag.as_str()));
             self.emit_error(format!("unknown flag: --{}{}", flag_name, suggestion));
             self.index += 1;
         }
@@ -654,7 +655,9 @@ impl<'a> ParseContext<'a> {
                 let prov_arg = format!("-{}", ch);
                 if is_last {
                     let flag_span = self.current_span();
-                    if self.index + 1 < self.args.len() && !self.args[self.index + 1].starts_with('-') {
+                    if self.index + 1 < self.args.len()
+                        && !self.args[self.index + 1].starts_with('-')
+                    {
                         self.index += 1;
                         let value_span = self.current_span();
                         let value_str = self.args[self.index];
@@ -845,7 +848,13 @@ impl<'a> ParseContext<'a> {
                 self.index += 1;
             }
             NamedValueMode::OptionalValue => {
-                self.parse_optional_flag_value(arg, target, insertion_path, is_multiple, inline_value);
+                self.parse_optional_flag_value(
+                    arg,
+                    target,
+                    insertion_path,
+                    is_multiple,
+                    inline_value,
+                );
             }
             NamedValueMode::RequiredValue => {
                 let flag_span = self.current_span();
@@ -1154,7 +1163,11 @@ impl<'a> ParseContext<'a> {
             return false;
         }
 
-        if level.subcommands().values().any(|sub| sub.cli_name() == "help") {
+        if level
+            .subcommands()
+            .values()
+            .any(|sub| sub.cli_name() == "help")
+        {
             return false;
         }
 
@@ -1431,7 +1444,12 @@ impl<'a> ParseContext<'a> {
 
             let value_span = self.current_span();
             let value = self.parse_value_string(arg, arg, value_span);
-            self.insert_value_path_to(InsertTarget::Current, schema.insertion_path(), value, schema.multiple());
+            self.insert_value_path_to(
+                InsertTarget::Current,
+                schema.insertion_path(),
+                value,
+                schema.multiple(),
+            );
             self.index += 1;
             return true;
         }
@@ -1537,11 +1555,17 @@ impl<'a> ParseContext<'a> {
                 .or_insert_with(|| ConfigValue::Object(Sourced::new(IndexMap::default())));
             match entry {
                 ConfigValue::Object(sourced) => {
-                    return Self::insert_value_at_path(&mut sourced.value, tail, value, is_multiple);
+                    return Self::insert_value_at_path(
+                        &mut sourced.value,
+                        tail,
+                        value,
+                        is_multiple,
+                    );
                 }
                 existing => {
                     let mut nested = IndexMap::default();
-                    let duplicate = Self::insert_value_at_path(&mut nested, tail, value, is_multiple);
+                    let duplicate =
+                        Self::insert_value_at_path(&mut nested, tail, value, is_multiple);
                     *existing = ConfigValue::Object(Sourced::new(nested));
                     return duplicate;
                 }
@@ -3626,10 +3650,7 @@ mod tests {
 
     #[test]
     fn test_alias_unknown_flag_suggestion_uses_aliases() {
-        assert_diagnostic_contains::<AliasedLongFlags>(
-            &["--colur"],
-            "Did you mean '--colour'?",
-        );
+        assert_diagnostic_contains::<AliasedLongFlags>(&["--colur"], "Did you mean '--colour'?");
     }
 
     #[test]
@@ -3640,5 +3661,3 @@ mod tests {
         );
     }
 }
-
-

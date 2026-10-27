@@ -716,8 +716,7 @@ pub fn run_source_with_snapshots_and_lane(
 /// source mark. This is an explicit diagnostic lane: ordinary [`run_source`]
 /// uses bounded Production tracing and preserves only structural task events.
 pub fn run_source_innards(source: &str) -> Result<RatchetReport, RunError> {
-    prepare_source_with_cache(source, crate::default_config(), LoweringCache::innards())?
-        .execute()
+    prepare_source_with_cache(source, crate::default_config(), LoweringCache::innards())?.execute()
 }
 /// Run every declared test twice under explicit shape-selection configuration.
 /// The forced-copy molten differential compiles the same source with

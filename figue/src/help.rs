@@ -1276,8 +1276,8 @@ fn render_html_arg_row(out: &mut String, arg: &ArgSchema) {
 fn render_arg_name_meta(out: &mut String, arg: &ArgSchema) {
     let value_mode = arg.named_value_mode();
     let is_bool_flag = matches!(value_mode, Some(NamedValueMode::BoolFlag));
-    let hide_false_bool_default = is_bool_flag
-        && arg.default().map(config_value_summary).as_deref() == Some("false");
+    let hide_false_bool_default =
+        is_bool_flag && arg.default().map(config_value_summary).as_deref() == Some("false");
     let has_enum_values = arg.cli_value_schema().enum_variants().is_some();
 
     if hide_false_bool_default && !has_enum_values {
@@ -3552,16 +3552,27 @@ mod tests {
     fn test_help_shows_aliases_after_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAlias::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(help.contains("--[no-]color"), "help should show canonical flag: {help}");
-        assert!(help.contains("aliases: colour"), "help should show aliases: {help}");
+        assert!(
+            help.contains("--[no-]color"),
+            "help should show canonical flag: {help}"
+        );
+        assert!(
+            help.contains("aliases: colour"),
+            "help should show aliases: {help}"
+        );
     }
 
     #[test]
     fn test_help_shows_subcommand_aliases_with_canonical_name() {
         let schema = Schema::from_shape(ArgsWithAliasedSubcommand::SHAPE).unwrap();
         let help = generate_help_for_subcommand(&schema, &[], &HelpConfig::default());
-        assert!(help.contains("profile"), "help should show canonical subcommand: {help}");
-        assert!(help.contains("aliases: profiles"), "help should surface compatibility aliases: {help}");
+        assert!(
+            help.contains("profile"),
+            "help should show canonical subcommand: {help}"
+        );
+        assert!(
+            help.contains("aliases: profiles"),
+            "help should surface compatibility aliases: {help}"
+        );
     }
 }
-

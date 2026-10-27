@@ -460,7 +460,10 @@ fn command_node_from_arg_level(level: &ArgLevelSchema) -> CommandNode {
             }
             ArgKind::Named { counted, .. } => {
                 let consumes_value = !counted
-                    && matches!(named_arg_value_mode(schema), NamedArgValueMode::RequiredValue);
+                    && matches!(
+                        named_arg_value_mode(schema),
+                        NamedArgValueMode::RequiredValue
+                    );
                 node.named_flag_consumes_value
                     .insert(name.to_kebab_case(), consumes_value);
             }
@@ -1033,5 +1036,3 @@ mod tests {
         );
     }
 }
-
-

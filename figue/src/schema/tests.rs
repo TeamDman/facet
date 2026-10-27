@@ -609,7 +609,10 @@ struct ArgsWithTypeProxiedStruct {
 #[test]
 fn test_struct_field_without_flatten_or_proxy_is_error() {
     let result = Schema::from_shape(ArgsWithUnflattenedStruct::SHAPE);
-    assert!(result.is_err(), "struct field without flatten or proxy should error");
+    assert!(
+        result.is_err(),
+        "struct field without flatten or proxy should error"
+    );
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("add #[facet(flatten)] to the CLI field"),
@@ -786,13 +789,19 @@ fn test_schema_alias_conflicts_with_canonical_flag() {
     let result = Schema::from_shape(ConflictingAliasAndCanonical::SHAPE);
     assert!(result.is_err(), "should detect alias/canonical conflict");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("duplicate flag `--port`"), "unexpected error: {err}");
+    assert!(
+        err.contains("duplicate flag `--port`"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]
 fn test_schema_duplicate_alias_on_same_field_is_rejected() {
     let result = Schema::from_shape(DuplicateAliasOnField::SHAPE);
-    assert!(result.is_err(), "should detect duplicate alias on one field");
+    assert!(
+        result.is_err(),
+        "should detect duplicate alias on one field"
+    );
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("duplicate alias `--drive-letter-pattern`"),
@@ -803,15 +812,24 @@ fn test_schema_duplicate_alias_on_same_field_is_rejected() {
 #[test]
 fn test_schema_duplicate_alias_across_fields_is_rejected() {
     let result = Schema::from_shape(ConflictingAliases::SHAPE);
-    assert!(result.is_err(), "should detect duplicate alias across fields");
+    assert!(
+        result.is_err(),
+        "should detect duplicate alias across fields"
+    );
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("duplicate flag `--drive-letter-pattern`"), "unexpected error: {err}");
+    assert!(
+        err.contains("duplicate flag `--drive-letter-pattern`"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]
 fn test_subcommand_duplicate_alias_on_same_variant_detected() {
     let result = Schema::from_shape(ArgsWithDuplicateSubcommandAlias::SHAPE);
-    assert!(result.is_err(), "should detect duplicate alias on one variant");
+    assert!(
+        result.is_err(),
+        "should detect duplicate alias on one variant"
+    );
     let err = result.unwrap_err().to_string();
     assert!(
         err.contains("duplicate subcommand alias") && err.contains("profiles"),
@@ -824,7 +842,10 @@ fn test_subcommand_alias_conflict_with_canonical_name_detected() {
     let result = Schema::from_shape(ArgsWithSubcommandAliasCanonicalConflict::SHAPE);
     assert!(result.is_err(), "should detect alias/canonical conflict");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("duplicate subcommand name `profile`"), "unexpected error: {err}");
+    assert!(
+        err.contains("duplicate subcommand name `profile`"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]
@@ -832,13 +853,16 @@ fn test_subcommand_alias_conflict_with_other_alias_detected() {
     let result = Schema::from_shape(ArgsWithSubcommandAliasAliasConflict::SHAPE);
     assert!(result.is_err(), "should detect alias/alias conflict");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("duplicate subcommand name `profiles`"), "unexpected error: {err}");
+    assert!(
+        err.contains("duplicate subcommand name `profiles`"),
+        "unexpected error: {err}"
+    );
 }
 
 #[test]
 fn test_subcommand_aliases_are_normalized_to_kebab_case() {
-    let schema = Schema::from_shape(ArgsWithCasedSubcommandAlias::SHAPE)
-        .expect("schema should build");
+    let schema =
+        Schema::from_shape(ArgsWithCasedSubcommandAlias::SHAPE).expect("schema should build");
     let subcommand = schema
         .args()
         .subcommands()
@@ -862,4 +886,3 @@ fn test_subcommand_alias_conflict_after_case_normalization_detected() {
         "unexpected error: {err}"
     );
 }
-

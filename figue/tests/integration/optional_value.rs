@@ -181,5 +181,3 @@ fn optional_value_help_and_completions_render_optional_placeholder() {
     assert!(bash.contains("--parallel"));
     assert!(!bash.contains("--parallel)\n            # Value expected"));
 }
-
-

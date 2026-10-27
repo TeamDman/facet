@@ -367,9 +367,9 @@ impl BindingRegistry {
     /// same-named method never collide.
     #[must_use]
     pub fn prelude(&self, name: &str) -> Option<&Binding> {
-        self.bindings.iter().find(|b| {
-            b.name == name && b.placement == Placement::Prelude && b.receiver.is_none()
-        })
+        self.bindings
+            .iter()
+            .find(|b| b.name == name && b.placement == Placement::Prelude && b.receiver.is_none())
     }
 
     /// Resolve a fully-qualified `module::name` (free-function bindings only).
@@ -500,12 +500,37 @@ const METHOD_BINDINGS: &[(ReceiverType, &str, usize, MethodOp)] = &[
     (ReceiverType::Array, "len", 0, MethodOp::ArrayLen),
     (ReceiverType::Array, "map", 1, MethodOp::ArrayMap),
     (ReceiverType::Array, "fold", 2, MethodOp::ArrayFold),
-    (ReceiverType::Array, "split_last", 0, MethodOp::ArraySplitLast),
+    (
+        ReceiverType::Array,
+        "split_last",
+        0,
+        MethodOp::ArraySplitLast,
+    ),
     (ReceiverType::String, "trim", 0, MethodOp::StringTrim),
-    (ReceiverType::String, "contains", 1, MethodOp::StringContains),
-    (ReceiverType::String, "split_once", 1, MethodOp::StringSplitOnce),
-    (ReceiverType::String, "parse_int", 0, MethodOp::StringParseInt),
-    (ReceiverType::String, "is_numeric", 0, MethodOp::StringIsNumeric),
+    (
+        ReceiverType::String,
+        "contains",
+        1,
+        MethodOp::StringContains,
+    ),
+    (
+        ReceiverType::String,
+        "split_once",
+        1,
+        MethodOp::StringSplitOnce,
+    ),
+    (
+        ReceiverType::String,
+        "parse_int",
+        0,
+        MethodOp::StringParseInt,
+    ),
+    (
+        ReceiverType::String,
+        "is_numeric",
+        0,
+        MethodOp::StringIsNumeric,
+    ),
     (ReceiverType::String, "lines", 0, MethodOp::StringLines),
     (ReceiverType::Array, "sorted", 0, MethodOp::ArraySorted),
     (ReceiverType::Array, "stream", 0, MethodOp::ArrayStream),
@@ -520,12 +545,32 @@ const METHOD_BINDINGS: &[(ReceiverType, &str, usize, MethodOp)] = &[
     (ReceiverType::Set, "len", 0, MethodOp::SetLen),
     (ReceiverType::Set, "values", 0, MethodOp::SetValues),
     (ReceiverType::Stream, "filter", 1, MethodOp::StreamFilter),
-    (ReceiverType::Stream, "filter_map", 1, MethodOp::StreamFilterMap),
+    (
+        ReceiverType::Stream,
+        "filter_map",
+        1,
+        MethodOp::StreamFilterMap,
+    ),
     (ReceiverType::Stream, "flat_map", 1, MethodOp::StreamFlatMap),
     (ReceiverType::Stream, "collect", 0, MethodOp::StreamCollect),
-    (ReceiverType::ByteStream, "collect", 0, MethodOp::ByteStreamCollect),
-    (ReceiverType::ByteStream, "trim", 0, MethodOp::ByteStreamTrim),
-    (ReceiverType::Stream, "split_min", 0, MethodOp::StreamSplitMin),
+    (
+        ReceiverType::ByteStream,
+        "collect",
+        0,
+        MethodOp::ByteStreamCollect,
+    ),
+    (
+        ReceiverType::ByteStream,
+        "trim",
+        0,
+        MethodOp::ByteStreamTrim,
+    ),
+    (
+        ReceiverType::Stream,
+        "split_min",
+        0,
+        MethodOp::StreamSplitMin,
+    ),
     (ReceiverType::Path, "to_string", 0, MethodOp::PathToString),
     (ReceiverType::Int, "to_string", 0, MethodOp::IntToString),
     // The domain methods (`Tree.glob`, `TreeEntry.text`, `Blob.len`,
@@ -812,9 +857,7 @@ static PRELUDE_NAMES: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
     BUILTIN_BINDINGS
         .bindings()
         .iter()
-        .filter(|binding| {
-            binding.placement == Placement::Prelude && binding.receiver.is_none()
-        })
+        .filter(|binding| binding.placement == Placement::Prelude && binding.receiver.is_none())
         .map(|binding| binding.name.clone())
         .collect()
 });
