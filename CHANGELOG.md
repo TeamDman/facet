@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Teamy 0.50.0-rc.8 preparation
+
+- Fix ordinary and format-specific field proxies that reference enclosing lifetime, type, or const generic parameters. Generated noncapturing closures retain the existing proxy function-pointer contract.
+- Prepare `teamy-facet-macros-impl`, `teamy-facet-macros`, `teamy-facet`, `teamy-facet-error`, and `teamy-facet-default` at `0.50.0-rc.8` with aligned exact dependencies.
+- Retain the existing `0.50.0-rc.7` core, reflection, path, pretty, solver, macro parser/type, and test-helper packages. This release does not require a new core/reflection type identity.
+
 ## [0.50.0-rc.7](https://github.com/facet-rs/facet/compare/facet-validate-v0.50.0-rc.6...facet-validate-v0.50.0-rc.7) - 2026-08-20
 
 ### Other

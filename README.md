@@ -9,8 +9,10 @@ copyright notices, contributors, and credits.
 The release-preparation source is integration commit
 `345ebb7ba42f7c6644c1d89ef53288fe81204fa5`: upstream commit
 `65bae5c31a7ce401bc44630fb96250ea884cfd3e` plus the reviewed Cow ownership and
-enum-alias contributions. Package versions remain `0.50.0-rc.7`; their Teamy
-package names distinguish them from official crates.
+enum-alias contributions. Current release preparation adds generic field-proxy
+support in `teamy-facet`, its macro crates, and the dependent Error/Default
+packages at `0.50.0-rc.8`. Core, Reflect, and the other unchanged packages retain
+`0.50.0-rc.7`; their Teamy package names distinguish them from official crates.
 
 See [TEAMY_RELEASE.md](TEAMY_RELEASE.md) for the package list, installation,
 publication order, validation, and limits. The overview below describes upstream

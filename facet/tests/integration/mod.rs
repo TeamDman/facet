@@ -12,6 +12,7 @@ mod extension_attr_list_shape_type;
 mod extension_attr_runtime_matrix;
 mod extension_attr_struct_payload;
 mod extension_attr_tuple_fields;
+mod field_proxy_generics;
 mod functions;
 mod generics;
 mod simd;

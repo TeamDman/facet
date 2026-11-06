@@ -17,12 +17,29 @@ documentation on top of that checkpoint. The active integration branch is
 
 ## Packages and publication order
 
-All packages in this repository's release use version `0.50.0-rc.7`.
-Exact internal requirements keep the cooperating reflection and macro APIs aligned.
-Their `teamy-` package prefix distinguishes this release from official Facet.
+The current release preparation updates only the packages needed for the
+field-proxy fix. Ordinary and format-specific field proxies now preserve the
+enclosing lifetime, type, and const generic parameters. The macro implementation
+uses noncapturing closures with the existing function-pointer contract.
 
-Publish the groups in this order; packages in each group have their dependencies
-available from earlier groups:
+| Package | Prepared version |
+| --- | --- |
+| `teamy-facet-macros-impl` | `0.50.0-rc.8` |
+| `teamy-facet-macros` | `0.50.0-rc.8` |
+| `teamy-facet` | `0.50.0-rc.8` |
+| `teamy-facet-error` | `0.50.0-rc.8` |
+| `teamy-facet-default` | `0.50.0-rc.8` |
+
+Publish `macros-impl`, then `macros`, then `facet`, then `error` and `default`.
+The remaining Teamy core packages stay at `0.50.0-rc.7`, including `core`,
+`path`, `reflect`, `pretty`, `solver`, macro parsing/types, and test helpers.
+These are distinct packages: retaining their existing versions preserves one
+core/reflection identity without republishing unchanged implementations.
+Exact internal requirements keep the cooperating reflection and macro APIs aligned.
+The `teamy-` package prefix distinguishes this release from official Facet.
+
+For reference, the initial `0.50.0-rc.7` release published all packages in these
+dependency groups:
 
 1. `teamy-facet-core`, `teamy-facet-macro-types`,
    `teamy-facet-testhelpers-macros`.
@@ -57,10 +74,10 @@ derive macros and extension attributes generate paths such as `::facet`,
 
 ```toml
 [dependencies]
-facet = { package = "teamy-facet", version = "=0.50.0-rc.7" }
+facet = { package = "teamy-facet", version = "=0.50.0-rc.8" }
 facet-reflect = { package = "teamy-facet-reflect", version = "=0.50.0-rc.7" }
-facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.7" }
-figue = { package = "teamy-figue", version = "=6.0.0-rc.1" }
+facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.10" }
+figue = { package = "teamy-figue", version = "=6.0.0-rc.6" }
 ```
 
 The registry dependencies above become usable after publication. Local manifests

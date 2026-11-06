@@ -970,28 +970,25 @@ pub(crate) fn gen_field_from_pfield(
                         &const {
                             extern crate alloc as __alloc;
 
-                            unsafe fn __proxy_convert_in(
-                                proxy_ptr: #facet_crate::PtrConst,
-                                field_ptr: #facet_crate::PtrUninit,
-                            ) -> ::core::result::Result<#facet_crate::PtrMut, __alloc::string::String> {
-                                let proxy: #proxy_type = proxy_ptr.read();
-                                match <#field_type as ::core::convert::TryFrom<#proxy_type>>::try_from(proxy) {
-                                    𝟋Ok(value) => 𝟋Ok(field_ptr.put(value)),
-                                    𝟋Err(e) => 𝟋Err(__alloc::string::ToString::to_string(&e)),
-                                }
-                            }
-
-                            unsafe fn __proxy_convert_out(
-                                field_ptr: #facet_crate::PtrConst,
-                                proxy_ptr: #facet_crate::PtrUninit,
-                            ) -> ::core::result::Result<#facet_crate::PtrMut, __alloc::string::String> {
-                                #convert_out_impl
-                            }
-
                             #facet_crate::ProxyDef {
                                 shape: <#proxy_type as #facet_crate::Facet>::SHAPE,
-                                convert_in: __proxy_convert_in,
-                                convert_out: __proxy_convert_out,
+                                // Noncapturing closures retain the enclosing type's generic
+                                // parameters, unlike nested function items. In particular,
+                                // preserve the field and proxy lifetimes rather than erasing them.
+                                convert_in: |proxy_ptr, field_ptr| {
+                                    // SAFETY: ProxyConvertInFn's caller supplies initialized
+                                    // proxy storage and uninitialized storage for this field.
+                                    let proxy: #proxy_type = unsafe { proxy_ptr.read() };
+                                    match <#field_type as ::core::convert::TryFrom<#proxy_type>>::try_from(proxy) {
+                                        𝟋Ok(value) => 𝟋Ok(unsafe { field_ptr.put(value) }),
+                                        𝟋Err(e) => 𝟋Err(__alloc::string::ToString::to_string(&e)),
+                                    }
+                                },
+                                // SAFETY: ProxyConvertOutFn's caller supplies initialized
+                                // field storage and uninitialized storage for this proxy.
+                                convert_out: |field_ptr, proxy_ptr| unsafe {
+                                    #convert_out_impl
+                                },
                             }
                         }
                     });
@@ -1046,28 +1043,25 @@ pub(crate) fn gen_field_from_pfield(
                         proxy: &const {
                             extern crate alloc as __alloc;
 
-                            unsafe fn __proxy_convert_in(
-                                proxy_ptr: #facet_crate::PtrConst,
-                                field_ptr: #facet_crate::PtrUninit,
-                            ) -> ::core::result::Result<#facet_crate::PtrMut, __alloc::string::String> {
-                                let proxy: #proxy_type = proxy_ptr.read();
-                                match <#field_type as ::core::convert::TryFrom<#proxy_type>>::try_from(proxy) {
-                                    𝟋Ok(value) => 𝟋Ok(field_ptr.put(value)),
-                                    𝟋Err(e) => 𝟋Err(__alloc::string::ToString::to_string(&e)),
-                                }
-                            }
-
-                            unsafe fn __proxy_convert_out(
-                                field_ptr: #facet_crate::PtrConst,
-                                proxy_ptr: #facet_crate::PtrUninit,
-                            ) -> ::core::result::Result<#facet_crate::PtrMut, __alloc::string::String> {
-                                #convert_out_impl
-                            }
-
                             #facet_crate::ProxyDef {
                                 shape: <#proxy_type as #facet_crate::Facet>::SHAPE,
-                                convert_in: __proxy_convert_in,
-                                convert_out: __proxy_convert_out,
+                                // Noncapturing closures retain the enclosing type's generic
+                                // parameters, unlike nested function items. In particular,
+                                // preserve the field and proxy lifetimes rather than erasing them.
+                                convert_in: |proxy_ptr, field_ptr| {
+                                    // SAFETY: ProxyConvertInFn's caller supplies initialized
+                                    // proxy storage and uninitialized storage for this field.
+                                    let proxy: #proxy_type = unsafe { proxy_ptr.read() };
+                                    match <#field_type as ::core::convert::TryFrom<#proxy_type>>::try_from(proxy) {
+                                        𝟋Ok(value) => 𝟋Ok(unsafe { field_ptr.put(value) }),
+                                        𝟋Err(e) => 𝟋Err(__alloc::string::ToString::to_string(&e)),
+                                    }
+                                },
+                                // SAFETY: ProxyConvertOutFn's caller supplies initialized
+                                // field storage and uninitialized storage for this proxy.
+                                convert_out: |field_ptr, proxy_ptr| unsafe {
+                                    #convert_out_impl
+                                },
                             }
                         },
                     }
