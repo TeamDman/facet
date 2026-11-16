@@ -17,18 +17,18 @@ documentation on top of that checkpoint. The active integration branch is
 
 ## Packages and publication order
 
-The current release preparation updates only the packages needed for the
-field-proxy fix. Ordinary and format-specific field proxies now preserve the
-enclosing lifetime, type, and const generic parameters. The macro implementation
-uses noncapturing closures with the existing function-pointer contract.
+The current release shares nongeneric enum metadata through a canonical static
+shape in its defining crate. Lifetime, type and const-generic enums retain their
+existing implementation. Earlier generic field-proxy fixes remain included.
+This changes code generation without changing the reflection schema or Core identity.
 
 | Package | Prepared version |
 | --- | --- |
-| `teamy-facet-macros-impl` | `0.50.0-rc.8` |
-| `teamy-facet-macros` | `0.50.0-rc.8` |
-| `teamy-facet` | `0.50.0-rc.8` |
-| `teamy-facet-error` | `0.50.0-rc.8` |
-| `teamy-facet-default` | `0.50.0-rc.8` |
+| `teamy-facet-macros-impl` | `0.50.0-rc.9` |
+| `teamy-facet-macros` | `0.50.0-rc.9` |
+| `teamy-facet` | `0.50.0-rc.9` |
+| `teamy-facet-error` | `0.50.0-rc.9` |
+| `teamy-facet-default` | `0.50.0-rc.9` |
 
 Publish `macros-impl`, then `macros`, then `facet`, then `error` and `default`.
 The remaining Teamy core packages stay at `0.50.0-rc.7`, including `core`,
@@ -74,10 +74,10 @@ derive macros and extension attributes generate paths such as `::facet`,
 
 ```toml
 [dependencies]
-facet = { package = "teamy-facet", version = "=0.50.0-rc.8" }
+facet = { package = "teamy-facet", version = "=0.50.0-rc.9" }
 facet-reflect = { package = "teamy-facet-reflect", version = "=0.50.0-rc.7" }
-facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.10" }
-figue = { package = "teamy-figue", version = "=6.0.0-rc.6" }
+facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.11" }
+figue = { package = "teamy-figue", version = "=6.0.0-rc.7" }
 ```
 
 The registry dependencies above become usable after publication. Local manifests
@@ -116,3 +116,12 @@ endorsement, or sponsorship of this fork.
 
 See [Cargo packaging](https://doc.rust-lang.org/cargo/commands/cargo-package.html)
 and [dependency aliases](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#renaming-dependencies-in-cargotoml).
+
+## 2026-11-16 qualification
+
+The rc.9 source passed 214 integration tests, the enum-sharing regression in
+debug and release, an alloc-only check, strict macro-implementation Clippy,
+and formatting of the changed Rust files on the existing pinned toolchains.
+The legacy local cargo-husky hook invokes the removed facet-dev package.
+This release commit uses a per-invocation hooksPath override after the explicit
+gates above; repository and global hook configuration are unchanged.

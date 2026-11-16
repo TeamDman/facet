@@ -1068,9 +1068,6 @@ pub(crate) fn process_enum(parsed: Enum) -> TokenStream {
         }
     };
 
-    // Static decl removed - the TYPENAME_SHAPE static was redundant since
-    // <T as Facet>::SHAPE is already accessible and nobody was using the static
-
     // Set up generics for impl blocks
     let facet_bgp = bgp.with_lifetime(LifetimeName(format_ident!("ʄ")));
     let bgp_def = facet_bgp.display_with_bounds();
@@ -1381,6 +1378,61 @@ pub(crate) fn process_enum(parsed: Enum) -> TokenStream {
         }
     };
 
+    let shape_data = quote! {
+        use #facet_crate::𝟋::*;
+        #(#trailing_shape_checks)*
+        #(#shadow_struct_defs)*
+        #fields
+        𝟋ShpB::for_sized::<Self>(#enum_name_str)
+            .module_path(::core::module_path!())
+            #decl_id_call
+            #source_location_call
+            .vtable(#vtable_init)
+            #type_ops_call
+            .ty(#ty_field)
+            .def(𝟋Def::Undefined)
+            #type_params_call
+            #const_params_call
+            #type_name_call
+            #doc_call
+            #attributes_call
+            #type_tag_call
+            #tag_call
+            #content_call
+            #untagged_call
+            #is_numeric_call
+            #pod_call
+            #proxy_call
+            #opaque_adapter_call
+            #variance_call
+            .build()
+    };
+
+    let (shape_inherent_impl, shape_reference) = if has_any_generics {
+        // A static cannot depend on an enclosing type, const, or lifetime parameter.
+        // Keep generic shapes on their existing per-instantiation const path.
+        (quote! {}, quote! { &const { #shape_data } })
+    } else {
+        (
+            quote! {
+                #[doc(hidden)]
+                #[allow(non_camel_case_types)]
+                impl #bgp_def #enum_name #where_clauses {
+                    const __SHAPE_DATA: #facet_crate::Shape = { #shape_data };
+                }
+            },
+            quote! {
+                {
+                    // An addressable static keeps the shape and its promoted variant
+                    // metadata in this defining crate instead of copying the entire
+                    // const graph into each downstream consumer's codegen unit.
+                    static SHAPE: #facet_crate::Shape = #enum_name::__SHAPE_DATA;
+                    &SHAPE
+                }
+            },
+        )
+    };
+
     // Generate the impl
     quote! {
         #phantom_attr_block
@@ -1398,38 +1450,12 @@ pub(crate) fn process_enum(parsed: Enum) -> TokenStream {
 
         #trait_assertion_fn
 
+        #shape_inherent_impl
+
         #[automatically_derived]
         #[allow(non_camel_case_types)]
         unsafe impl #bgp_def #facet_crate::Facet<'ʄ> for #enum_name #bgp_without_bounds #where_clauses {
-            const SHAPE: &'static #facet_crate::Shape = &const {
-                use #facet_crate::𝟋::*;
-                #(#trailing_shape_checks)*
-                #(#shadow_struct_defs)*
-                #fields
-                𝟋ShpB::for_sized::<Self>(#enum_name_str)
-                    .module_path(::core::module_path!())
-                    #decl_id_call
-                    #source_location_call
-                    .vtable(#vtable_init)
-                    #type_ops_call
-                    .ty(#ty_field)
-                    .def(𝟋Def::Undefined)
-                    #type_params_call
-                    #const_params_call
-                    #type_name_call
-                    #doc_call
-                    #attributes_call
-                    #type_tag_call
-                    #tag_call
-                    #content_call
-                    #untagged_call
-                    #is_numeric_call
-                    #pod_call
-                    #proxy_call
-                    #opaque_adapter_call
-                    #variance_call
-                    .build()
-            };
+            const SHAPE: &'static #facet_crate::Shape = #shape_reference;
         }
 
         #static_decl

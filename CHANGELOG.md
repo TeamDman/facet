@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Teamy 0.50.0-rc.9 — 2026-11-16
+
+- Give nongeneric enums one canonical static shape instead of copying promoted metadata into generic consumers. Generic and lifetime-bearing enum reflection remains unchanged.
+- Align the Facet facade, derive packages, Error and Default at rc.9; retain Core and reflection packages at rc.7.
+
+
 ### Teamy 0.50.0-rc.8 preparation
 
 - Fix ordinary and format-specific field proxies that reference enclosing lifetime, type, or const generic parameters. Generated noncapturing closures retain the existing proxy function-pointer contract.
