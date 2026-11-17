@@ -81,8 +81,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-facet = {{ path = {:?} }}
-facet-reflect = {{ path = {:?} }}
+facet = {{ package = "teamy-facet", path = {:?} }}
+facet-reflect = {{ package = "teamy-facet-reflect", path = {:?} }}
     "#,
         facet_path.display(),
         facet_reflect_path.display()

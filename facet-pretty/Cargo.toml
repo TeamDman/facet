@@ -1,6 +1,6 @@
 [package]
 name = "teamy-facet-pretty"
-version = "0.50.0-rc.7"
+version = "0.50.0-rc.8"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -36,8 +36,8 @@ detect-terminal-theme = ["dep:terminal-light"]
 name = "facet_pretty"
 
 [dependencies]
-facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.7" }
-facet-reflect = { package = "teamy-facet-reflect", path = "../facet-reflect", version = "=0.50.0-rc.7" }
+facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.8" }
+facet-reflect = { package = "teamy-facet-reflect", path = "../facet-reflect", version = "=0.50.0-rc.8" }
 owo-colors = { version = "4", features = ["supports-colors"] }
 
 # `terminal-light` -> `crossterm` does not compile on wasm32. The

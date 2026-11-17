@@ -56,9 +56,10 @@ fn peek_opaque_custom_serialize() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
-        assert_eq!(proxy_value.0, 35);
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
+            assert_eq!(proxy_value.0, 35);
+        });
     }
     assert!(tested);
     Ok(())
@@ -125,9 +126,10 @@ fn peek_shaped_custom_serialize() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<Struct1Proxy>().unwrap();
-        assert_eq!(proxy_value.sum, "0x23");
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<Struct1Proxy>().unwrap();
+            assert_eq!(proxy_value.sum, "0x23");
+        });
     }
     assert!(tested);
     Ok(())
@@ -194,9 +196,10 @@ fn peek_opaque_custom_serialize_enum_tuple() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
-        assert_eq!(proxy_value.0, 35);
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
+            assert_eq!(proxy_value.0, 35);
+        });
     }
     assert!(tested);
     Ok(())
@@ -268,9 +271,10 @@ fn peek_opaque_custom_serialize_enum_feels() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
-        assert_eq!(proxy_value.0, 35);
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
+            assert_eq!(proxy_value.0, 35);
+        });
     }
     assert!(tested);
     Ok(())
@@ -337,9 +341,10 @@ fn peek_shaped_custom_serialize_pointers() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<ArcStruct1Proxy>().unwrap();
-        assert_eq!(proxy_value.sum, "0x23");
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<ArcStruct1Proxy>().unwrap();
+            assert_eq!(proxy_value.sum, "0x23");
+        });
     }
     assert!(tested);
     Ok(())
@@ -467,11 +472,121 @@ fn peek_custom_serialize_zst() -> Result<(), IPanic> {
             .custom_serialization(field.field.unwrap())
             .expect("should return owned peek");
         // Test field values
-        let peek = owned.as_peek();
-        let proxy_value = peek.get::<UnitProxy>().unwrap();
-        assert_eq!(proxy_value.0, 35);
+        owned.with_peek(|peek| {
+            let proxy_value = peek.get::<UnitProxy>().unwrap();
+            assert_eq!(proxy_value.0, 35);
+        });
     }
     assert!(tested);
 
     Ok(())
+}
+
+#[test]
+fn invariant_proxy_is_rejected_before_conversion() {
+    use std::marker::PhantomData;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static CONVERSION_CALLED: AtomicBool = AtomicBool::new(false);
+
+    #[derive(Facet)]
+    struct InvariantProxy<'a> {
+        marker: PhantomData<fn(&'a ()) -> &'a ()>,
+    }
+
+    #[derive(Facet)]
+    #[facet(proxy = InvariantProxy<'static>)]
+    struct Target;
+
+    impl TryFrom<&Target> for InvariantProxy<'static> {
+        type Error = &'static str;
+
+        fn try_from(_: &Target) -> Result<Self, Self::Error> {
+            CONVERSION_CALLED.store(true, Ordering::SeqCst);
+            Ok(Self {
+                marker: PhantomData,
+            })
+        }
+    }
+
+    impl TryFrom<InvariantProxy<'static>> for Target {
+        type Error = &'static str;
+
+        fn try_from(_: InvariantProxy<'static>) -> Result<Self, Self::Error> {
+            Ok(Self)
+        }
+    }
+
+    #[derive(Facet)]
+    struct Container {
+        #[facet(proxy = InvariantProxy<'static>)]
+        target: Target,
+    }
+
+    let target = Target;
+    let shape_error = Peek::new(&target)
+        .custom_serialization_from_shape()
+        .err()
+        .expect("an invariant proxy cannot be reborrowed at a shorter lifetime");
+    let container = Container { target: Target };
+    let structure = Peek::new(&container).into_struct().unwrap();
+    let (field, value) = structure.fields_for_serialize().next().unwrap();
+    let field_error = value
+        .custom_serialization(field.field.unwrap())
+        .err()
+        .expect("field proxies must enforce the same lifetime boundary");
+
+    for error in [shape_error, field_error] {
+        assert!(matches!(
+            error.kind,
+            ReflectErrorKind::OperationFailed { .. }
+        ));
+    }
+    assert!(!CONVERSION_CALLED.load(Ordering::SeqCst));
+}
+
+#[cfg(feature = "fn-ptr")]
+#[test]
+fn contravariant_proxy_is_rejected_before_conversion() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static CONVERSION_CALLED: AtomicBool = AtomicBool::new(false);
+
+    #[derive(Facet)]
+    struct ContravariantProxy<'a> {
+        accept: fn(&'a str),
+    }
+
+    #[derive(Facet)]
+    #[facet(proxy = ContravariantProxy<'static>)]
+    struct Target;
+
+    impl TryFrom<&Target> for ContravariantProxy<'static> {
+        type Error = &'static str;
+
+        fn try_from(_: &Target) -> Result<Self, Self::Error> {
+            CONVERSION_CALLED.store(true, Ordering::SeqCst);
+            Ok(Self { accept: |_| {} })
+        }
+    }
+
+    impl TryFrom<ContravariantProxy<'static>> for Target {
+        type Error = &'static str;
+
+        fn try_from(_: ContravariantProxy<'static>) -> Result<Self, Self::Error> {
+            Ok(Self)
+        }
+    }
+
+    let target = Target;
+    let error = Peek::new(&target)
+        .custom_serialization_from_shape()
+        .err()
+        .expect("a static function argument must not become a shorter-lived argument");
+
+    assert!(matches!(
+        error.kind,
+        ReflectErrorKind::OperationFailed { .. }
+    ));
+    assert!(!CONVERSION_CALLED.load(Ordering::SeqCst));
 }

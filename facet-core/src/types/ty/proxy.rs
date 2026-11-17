@@ -12,7 +12,9 @@ use alloc::string::String;
 /// Function type for proxy deserialization: converts FROM proxy type INTO target type.
 ///
 /// # Safety
-/// - `proxy_ptr` must point to a valid, initialized value of the proxy type
+/// - `proxy_ptr` must point to a valid, initialized proxy value whose ownership
+///   the conversion may consume. The caller must not read or drop it as an
+///   initialized value afterward; only its allocation remains the caller's.
 /// - `target_ptr` must point to uninitialized memory suitable for the target type
 ///
 /// On success, returns `Ok(PtrMut)` pointing to the initialized target value.
@@ -25,6 +27,9 @@ pub type ProxyConvertInFn =
 /// # Safety
 /// - `target_ptr` must point to a valid, initialized value of the target type
 /// - `proxy_ptr` must point to uninitialized memory suitable for the proxy type
+/// - A produced proxy may borrow the target. The caller must keep the target alive
+///   and immutably borrowed until that proxy and all borrows or clones derived from
+///   it are dropped. The conversion must not create borrows that outlive their input.
 ///
 /// On success, returns `Ok(PtrMut)` pointing to the initialized proxy value.
 /// On failure, returns `Err(String)` with an error message.

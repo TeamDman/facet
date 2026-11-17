@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Teamy path proxies and reflection safety — 2026-11-17
+
+- Publish Core/Path/Reflect/Solver/Pretty rc.8 and Facet/Error/Default rc.10 with coherent exact dependency pins. Unchanged derive packages remain at rc.9, and macro parsing/types remain at rc.7.
+- Serialize PathBuf through a borrowed Cow<str> proxy, retaining owned decoding and rejecting non-UTF-8 paths without lossy replacement. The proxy-holder allocation and existing owned map-key representation remain.
+- BREAKING: replace OwnedPeek::as_peek with with_peek(|value| ...). Return owned results from the callback; borrowed proxy contents must not escape. Reject invariant and contravariant serialization proxies before allocation or conversion because their lifetimes cannot safely shrink.
+- Share serialization-proxy construction and propagate allocation cleanup failures. Cover borrowed escape and owner lifetime errors with compiler regressions.
+
+
+
 ### Teamy 0.50.0-rc.9 — 2026-11-16
 
 - Give nongeneric enums one canonical static shape instead of copying promoted metadata into generic consumers. Generic and lifetime-bearing enum reflection remains unchanged.

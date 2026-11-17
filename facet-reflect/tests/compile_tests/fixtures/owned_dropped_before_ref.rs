@@ -38,8 +38,10 @@ fn main() {
         let owned = peek
             .custom_serialization(field_item.field.unwrap())
             .unwrap();
-        let peek = owned.as_peek();
-        drop(owned);
-        let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
+        owned.with_peek(|peek| {
+            drop(owned);
+            let proxy_value = peek.get::<NotDerivingFacetProxy>().unwrap();
+            assert_eq!(proxy_value.0, 35);
+        });
     }
 }

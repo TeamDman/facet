@@ -939,43 +939,7 @@ impl<'mem, 'facet> Peek<'mem, 'facet> {
                 operation: "field does not have a proxy definition",
             }));
         };
-
-        let target_shape = proxy_def.shape;
-        let tptr = target_shape.allocate().map_err(|_| {
-            self.err(ReflectErrorKind::Unsized {
-                shape: target_shape,
-                operation: "Not a Sized type",
-            })
-        })?;
-        let ser_res = unsafe { (proxy_def.convert_out)(self.data(), tptr) };
-        let err = match ser_res {
-            Ok(rptr) => {
-                if rptr.as_uninit() != tptr {
-                    ReflectErrorKind::CustomSerializationError {
-                        message: "convert_out did not return the expected pointer".into(),
-                        src_shape: self.shape,
-                        dst_shape: target_shape,
-                    }
-                } else {
-                    return Ok(OwnedPeek {
-                        shape: target_shape,
-                        data: rptr,
-                        _phantom: PhantomData,
-                    });
-                }
-            }
-            Err(message) => ReflectErrorKind::CustomSerializationError {
-                message,
-                src_shape: self.shape,
-                dst_shape: target_shape,
-            },
-        };
-        // if we reach here we have an error and we need to deallocate the target allocation
-        unsafe {
-            // SAFETY: unwrap should be ok since the allocation was ok
-            target_shape.deallocate_uninit(tptr).unwrap()
-        };
-        Err(self.err(err))
+        self.custom_serialization_with_proxy(proxy_def)
     }
 
     /// Performs custom serialization using a specific proxy definition.
@@ -988,6 +952,14 @@ impl<'mem, 'facet> Peek<'mem, 'facet> {
         proxy_def: &'static facet_core::ProxyDef,
     ) -> Result<OwnedPeek<'mem>, ReflectError> {
         let target_shape = proxy_def.shape;
+        // A borrowed proxy is inspected at a shorter, callback-scoped lifetime.
+        // Invariant and contravariant types cannot safely permit that rebinding.
+        if !target_shape.computed_variance().can_shrink() {
+            return Err(self.err(ReflectErrorKind::OperationFailed {
+                shape: target_shape,
+                operation: "serialization proxy must be covariant or bivariant",
+            }));
+        }
         let tptr = target_shape.allocate().map_err(|_| {
             self.err(ReflectErrorKind::Unsized {
                 shape: target_shape,
@@ -1017,11 +989,14 @@ impl<'mem, 'facet> Peek<'mem, 'facet> {
                 dst_shape: target_shape,
             },
         };
-        // if we reach here we have an error and we need to deallocate the target allocation
-        unsafe {
-            // SAFETY: unwrap should be ok since the allocation was ok
-            target_shape.deallocate_uninit(tptr).unwrap()
-        };
+        // The failed conversion did not yield an initialized, usable proxy.
+        // SAFETY: this allocation came from target_shape and remains ours to release.
+        unsafe { target_shape.deallocate_uninit(tptr) }.map_err(|_| {
+            self.err(ReflectErrorKind::Unsized {
+                shape: target_shape,
+                operation: "deallocating a failed serialization proxy",
+            })
+        })?;
         Err(self.err(err))
     }
 
@@ -1052,45 +1027,7 @@ impl<'mem, 'facet> Peek<'mem, 'facet> {
         let Some(proxy_def) = self.shape.effective_proxy(format_namespace) else {
             return Ok(None);
         };
-
-        let target_shape = proxy_def.shape;
-        let tptr = target_shape.allocate().map_err(|_| {
-            self.err(ReflectErrorKind::Unsized {
-                shape: target_shape,
-                operation: "Not a Sized type",
-            })
-        })?;
-
-        let ser_res = unsafe { (proxy_def.convert_out)(self.data(), tptr) };
-        let err = match ser_res {
-            Ok(rptr) => {
-                if rptr.as_uninit() != tptr {
-                    ReflectErrorKind::CustomSerializationError {
-                        message: "proxy convert_out did not return the expected pointer".into(),
-                        src_shape: self.shape,
-                        dst_shape: target_shape,
-                    }
-                } else {
-                    return Ok(Some(OwnedPeek {
-                        shape: target_shape,
-                        data: rptr,
-                        _phantom: PhantomData,
-                    }));
-                }
-            }
-            Err(message) => ReflectErrorKind::CustomSerializationError {
-                message,
-                src_shape: self.shape,
-                dst_shape: target_shape,
-            },
-        };
-
-        // if we reach here we have an error and we need to deallocate the target allocation
-        unsafe {
-            // SAFETY: unwrap should be ok since the allocation was ok
-            target_shape.deallocate_uninit(tptr).unwrap()
-        };
-        Err(self.err(err))
+        self.custom_serialization_with_proxy(proxy_def).map(Some)
     }
 
     /// Navigate to a nested value by following a [`Path`].

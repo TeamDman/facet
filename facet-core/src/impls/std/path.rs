@@ -1,6 +1,9 @@
+use alloc::borrow::Cow;
+use alloc::string::String;
+
 use crate::{
-    Def, Facet, PtrConst, Shape, ShapeBuilder, TryFromOutcome, Type, UserType, VTableDirect,
-    VTableIndirect, vtable_direct, vtable_indirect,
+    Def, Facet, ProxyDef, PtrConst, PtrMut, PtrUninit, Shape, ShapeBuilder, TryFromOutcome, Type,
+    UserType, VTableDirect, VTableIndirect, vtable_direct, vtable_indirect,
 };
 
 /// Try to convert from &str or String to PathBuf
@@ -39,6 +42,48 @@ unsafe fn pathbuf_parse(s: &str, target: *mut std::path::PathBuf) -> Result<(), 
     Ok(())
 }
 
+/// Convert a path to its UTF-8 string representation without lossy replacement.
+///
+/// # Safety
+/// `target_ptr` must point to an initialized `PathBuf`. `proxy_ptr` must be
+/// aligned, uninitialized storage suitable for a `Cow<'_, str>`. The target
+/// must remain alive and immutably borrowed while the proxy or its borrows exist.
+unsafe fn pathbuf_proxy_convert_out(
+    target_ptr: PtrConst,
+    proxy_ptr: PtrUninit,
+) -> Result<PtrMut, String> {
+    // SAFETY: the proxy contract supplies an initialized PathBuf of this shape.
+    let path = unsafe { target_ptr.get::<std::path::PathBuf>() };
+    let text = path
+        .to_str()
+        .ok_or_else(|| String::from("path contains non-UTF-8 data"))?;
+    // SAFETY: the proxy shape is Cow<str> and its storage is uninitialized.
+    // The conversion contract retains the target for this borrowed proxy.
+    Ok(unsafe { proxy_ptr.put(Cow::Borrowed(text)) })
+}
+
+/// Consume the string proxy and construct an owned path.
+///
+/// # Safety
+/// `proxy_ptr` must point to an initialized `Cow<'_, str>` that may be consumed.
+/// `target_ptr` must be aligned, uninitialized storage suitable for a `PathBuf`.
+unsafe fn pathbuf_proxy_convert_in(
+    proxy_ptr: PtrConst,
+    target_ptr: PtrUninit,
+) -> Result<PtrMut, String> {
+    // SAFETY: the proxy contract transfers ownership of its initialized Cow<str>.
+    let text = unsafe { proxy_ptr.read::<Cow<'_, str>>() };
+    // SAFETY: the target shape is PathBuf and its storage is uninitialized.
+    Ok(unsafe { target_ptr.put(std::path::PathBuf::from(text.into_owned())) })
+}
+
+const PATHBUF_PROXY: ProxyDef = ProxyDef {
+    // Only metadata uses 'static; the conversion writes a borrow of the target.
+    shape: <Cow<'static, str> as Facet>::SHAPE,
+    convert_in: pathbuf_proxy_convert_in,
+    convert_out: pathbuf_proxy_convert_out,
+};
+
 unsafe impl Facet<'_> for std::path::PathBuf {
     const SHAPE: &'static Shape = &const {
         const VTABLE: VTableDirect = vtable_direct!(std::path::PathBuf =>
@@ -56,6 +101,7 @@ unsafe impl Facet<'_> for std::path::PathBuf {
             .ty(Type::User(UserType::Opaque))
             .def(Def::Scalar)
             .vtable_direct(&VTABLE)
+            .proxy(&PATHBUF_PROXY)
             .eq()
             .send()
             .sync()

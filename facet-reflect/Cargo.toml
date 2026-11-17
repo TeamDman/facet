@@ -1,6 +1,6 @@
 [package]
 name = "teamy-facet-reflect"
-version = "0.50.0-rc.7"
+version = "0.50.0-rc.8"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -43,8 +43,8 @@ fn-ptr = ["facet-core/fn-ptr"] # Enable Facet implementation for function pointe
 name = "facet_reflect"
 
 [dependencies]
-facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.7", default-features = false }
-facet-path = { package = "teamy-facet-path", version = "=0.50.0-rc.7", path = "../facet-path", default-features = false }
+facet-core = { package = "teamy-facet-core", path = "../facet-core", version = "=0.50.0-rc.8", default-features = false }
+facet-path = { package = "teamy-facet-path", version = "=0.50.0-rc.8", path = "../facet-path", default-features = false }
 hashbrown = "0.17"
 smallvec = "^2.0.0-alpha.10"
 regex = { version = "1", default-features = false, features = ["std"], optional = true }

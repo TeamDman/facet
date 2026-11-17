@@ -5,7 +5,7 @@ published packages with their own Rust type identities, rather than official
 Facet releases. Original upstream contributors, copyright notices, and the
 MIT OR Apache-2.0 licensing are retained.
 
-The reviewed source checkpoint is
+The original fork integration checkpoint is
 [345ebb7ba42f7c6644c1d89ef53288fe81204fa5](https://github.com/TeamDman/facet/commit/345ebb7ba42f7c6644c1d89ef53288fe81204fa5).
 Its upstream baseline is
 [65bae5c31a7ce401bc44630fb96250ea884cfd3e](https://github.com/facet-rs/facet/commit/65bae5c31a7ce401bc44630fb96250ea884cfd3e),
@@ -17,26 +17,44 @@ documentation on top of that checkpoint. The active integration branch is
 
 ## Packages and publication order
 
-The current release shares nongeneric enum metadata through a canonical static
-shape in its defining crate. Lifetime, type and const-generic enums retain their
-existing implementation. Earlier generic field-proxy fixes remain included.
-This changes code generation without changing the reflection schema or Core identity.
+The current release gives `PathBuf` a type-owned `Cow<str>` wire proxy. UTF-8
+path values borrow their existing text during serialization; non-UTF-8 paths
+return an explicit error rather than replacing bytes. The proxy holder still
+allocates, and generic map-key serialization still copies its key text.
+
+This release changes the Core/reflection package identity. All interacting
+consumers must move together to the matching Teamy family; retaining an old
+exact Core dependency introduces a second, incompatible reflection identity.
+The canonical nongeneric enum metadata fix from rc.9 remains included.
 
 | Package | Prepared version |
 | --- | --- |
-| `teamy-facet-macros-impl` | `0.50.0-rc.9` |
-| `teamy-facet-macros` | `0.50.0-rc.9` |
-| `teamy-facet` | `0.50.0-rc.9` |
-| `teamy-facet-error` | `0.50.0-rc.9` |
-| `teamy-facet-default` | `0.50.0-rc.9` |
+| `teamy-facet-core` | `0.50.0-rc.8` |
+| `teamy-facet-path` | `0.50.0-rc.8` |
+| `teamy-facet-reflect` | `0.50.0-rc.8` |
+| `teamy-facet-solver` | `0.50.0-rc.8` |
+| `teamy-facet-pretty` | `0.50.0-rc.8` |
+| `teamy-facet` | `0.50.0-rc.10` |
+| `teamy-facet-error` | `0.50.0-rc.10` |
+| `teamy-facet-default` | `0.50.0-rc.10` |
 
-Publish `macros-impl`, then `macros`, then `facet`, then `error` and `default`.
-The remaining Teamy core packages stay at `0.50.0-rc.7`, including `core`,
-`path`, `reflect`, `pretty`, `solver`, macro parsing/types, and test helpers.
-These are distinct packages: retaining their existing versions preserves one
-core/reflection identity without republishing unchanged implementations.
-Exact internal requirements keep the cooperating reflection and macro APIs aligned.
-The `teamy-` package prefix distinguishes this release from official Facet.
+Publish Core, then Path, then Reflect, then Solver/Pretty/Facet, then Error/Default.
+The derive packages `teamy-facet-macros` and `teamy-facet-macros-impl` stay at
+`0.50.0-rc.9`; macro parsing/types and test helpers stay at `0.50.0-rc.7`.
+Those packages do not require another release to select the new Core identity.
+
+### Low-level serialization API migration
+
+`OwnedPeek::as_peek()` is replaced by `OwnedPeek::with_peek(|value| { ... })`.
+Use the reflected proxy inside the callback and return owned output when it
+must be retained. Its fresh invariant lifetime prevents borrowed proxy data
+from escaping as a purported static value. Proxy construction rejects
+invariant and contravariant proxy shapes before allocating; only covariant
+or bivariant shapes admit the required lifetime shortening.
+
+These changes preserve JSON string representations and do not require a
+consumer path wrapper. Shared serializers retain proxy conversion errors
+with their containing type and field/index path.
 
 For reference, the initial `0.50.0-rc.7` release published all packages in these
 dependency groups:
@@ -74,10 +92,10 @@ derive macros and extension attributes generate paths such as `::facet`,
 
 ```toml
 [dependencies]
-facet = { package = "teamy-facet", version = "=0.50.0-rc.9" }
-facet-reflect = { package = "teamy-facet-reflect", version = "=0.50.0-rc.7" }
-facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.11" }
-figue = { package = "teamy-figue", version = "=6.0.0-rc.7" }
+facet = { package = "teamy-facet", version = "=0.50.0-rc.10" }
+facet-reflect = { package = "teamy-facet-reflect", version = "=0.50.0-rc.8" }
+facet-json = { package = "teamy-facet-json", version = "=0.50.0-rc.12" }
+figue = { package = "teamy-figue", version = "=6.0.0-rc.8" }
 ```
 
 The registry dependencies above become usable after publication. Local manifests
